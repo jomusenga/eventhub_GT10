@@ -1,0 +1,40 @@
+name: EventHub Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service: [events-service, participants-service, registrations-service]
+
+    steps:
+      - name: 1. Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js 25
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+          cache: 'npm'
+          cache-dependency-path: 'eventhub/backend/${{ matrix.service }}/package-lock.json'
+
+      - name: 3. Install Dependencies
+        run: |
+          cd eventhub/backend/${{ matrix.service }}
+          npm ci || npm install
+
+      - name: 4. Run Unit Tests
+        run: |
+          cd eventhub/backend/${{ matrix.service }}
+          npm test
+
+      - name: 5. Build Docker Image (Node 25 Alpine)
+        run: |
+          docker build -t eventhub-${{ matrix.service }}:latest ./eventhub/backend/${{ matrix.service }}

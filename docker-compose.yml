@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL pour Events
+  db-events:
+    image: postgres:15-alpine
+    container_name: eventhub-db-events
+    restart: always
+    environment:
+      POSTGRES_USER: event_user
+      POSTGRES_PASSWORD: event_password
+      POSTGRES_DB: events_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_events_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U event_user -d events_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Base de données PostgreSQL pour Participants
+  db-participants:
+    image: postgres:15-alpine
+    container_name: eventhub-db-participants
+    restart: always
+    environment:
+      POSTGRES_USER: participant_user
+      POSTGRES_PASSWORD: participant_password
+      POSTGRES_DB: participants_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_participants_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U participant_user -d participants_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Base de données PostgreSQL pour Registrations
+  db-registrations:
+    image: postgres:15-alpine
+    container_name: eventhub-db-registrations
+    restart: always
+    environment:
+      POSTGRES_USER: registration_user
+      POSTGRES_PASSWORD: registration_password
+      POSTGRES_DB: registrations_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_registrations_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U registration_user -d registrations_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Microservice Événements
+  events-service:
+    build:
+      context: ./backend/events-service
+      dockerfile: Dockerfile
+    container_name: eventhub-events-service
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      DATABASE_URL: postgresql://event_user:event_password@db-events:5432/events_db
+    depends_on:
+      db-events:
+        condition: service_healthy
+
+  # Microservice Participants
+  participants-service:
+    build:
+      context: ./backend/participants-service
+      dockerfile: Dockerfile
+    container_name: eventhub-participants-service
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      NODE_ENV: production
+      DATABASE_URL: postgresql://participant_user:participant_password@db-participants:5432/participants_db
+    depends_on:
+      db-participants:
+        condition: service_healthy
+
+  # Microservice Inscriptions
+  registrations-service:
+    build:
+      context: ./backend/registrations-service
+      dockerfile: Dockerfile
+    container_name: eventhub-registrations-service
+    restart: always
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      NODE_ENV: production
+      DATABASE_URL: postgresql://registration_user:registration_password@db-registrations:5432/registrations_db
+      EVENTS_SERVICE_URL: http://events-service:3001
+      PARTICIPANTS_SERVICE_URL: http://participants-service:3002
+    depends_on:
+      db-registrations:
+        condition: service_healthy
+      events-service:
+        condition: service_started
+      participants-service:
+        condition: service_started
+
+  # Frontend Web App React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eventhub-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - events-service
+      - participants-service
+      - registrations-service
+
+volumes:
+  postgres_events_data:
+  postgres_participants_data:
+  postgres_registrations_data:
