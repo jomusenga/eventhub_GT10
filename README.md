@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # EventHub - Plateforme Microservices de Gestion d'Événements
 
 > **Dakar Institute of Technology (DIT) — Examen DevOps Master 1 Intelligence Artificielle**
@@ -143,3 +144,7 @@ Le projet intègre un pipeline GitHub Actions défini dans `.github/workflows/ba
 - **Backend Lead** : Lory Doambe
 - **Backend** : Houleymatou Diallo (`participants-service` & `registrations-service`)
 - **DevOps** : Joseph Musenga Kabong
+=======
+# eventhub
+Projet Examen DevOps EventHub - Master 1 IA - DIT - GT10
+>>>>>>> origin/develop
