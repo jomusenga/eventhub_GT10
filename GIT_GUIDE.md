@@ -1,109 +1,73 @@
-# 🚀 Guide Git & Intégration Backend EventHub (Node.js 25)
+# 🚀 Architecture Git & Guide de Contribution - EventHub
 
-Ce document fournit toutes les étapes pas-à-pas pour initialiser le dépôt Git, structurer les commits et effectuer les Pull Requests sur GitHub en suivant les meilleures pratiques DevOps et le découpage de l'équipe DIT.
-
----
-
-## 📌 1. Configuration de l'environnement
-
-- **Node.js** : `v25.9.0` (Alpine Image: `node:25-alpine`)
-- **OpenAPI / Swagger** : Accessible interactivement sur chaque microservice :
-  - `http://localhost:3001/api-docs` (events-service)
-  - `http://localhost:3002/api-docs` (participants-service)
-  - `http://localhost:3003/api-docs` (registrations-service)
-- **Fichier Swagger unifié** : `docs/swagger.json` (importable dans Postman / Insomnia).
+Ce document décrit l'architecture Git officielle du projet **EventHub** conforme au diagramme de l'équipe DIT.
 
 ---
 
-## 🌿 2. Stratégie de Branches Git
+## 🌳 Architecture des Branches Git
 
-Conformément à la consigne de l'examen DevOps :
-- `main` : Production (déploiement automatique)
-- `develop` : Intégration continue
-- `feature/participants-service` : Branche de fonctionnalités pour **Houleymatou Diallo**
-- `feature/registrations-service` : Branche de fonctionnalités pour **Houleymatou Diallo**
-- `feature/events-service` : Branche de fonctionnalités pour **Lory Doambe**
+```
+main ────────── develop ┬── feature/events-service
+                        ├── feature/participants-service
+                        ├── feature/registrations-service
+                        ├── feature/frontend
+                        ├── feature/docker
+                        └── feature/ci
+```
+
+### Description des Branches :
+- **`main`** : Branche de production. Seules les Pull Requests validées depuis `develop` y sont fusionnées.
+- **`develop`** : Branche principale d'intégration continue. Reçoit les Pull Requests des branches `feature/*`.
+- **`feature/events-service`** : Développement du microservice événements (Lory Doambe).
+- **`feature/participants-service`** : Développement du microservice participants (Houleymatou Diallo).
+- **`feature/registrations-service`** : Développement du microservice inscriptions & stats (Houleymatou Diallo).
+- **`feature/frontend`** : Développement de l'interface React (Yveline Tibera).
+- **`feature/docker`** : Dockerfiles et orchestration Docker Compose (Joseph Musenga).
+- **`feature/ci`** : Workflows CI/CD GitHub Actions (Joseph Musenga).
 
 ---
 
-## 💻 3. Commandes Git pas-à-pas pour Houleymatou Diallo
+## 💻 Instructions Git pour Houleymatou Diallo
 
-### Étape A : Initialiser le dépôt Git local
+Les branches locales ont déjà été créées sur votre dépôt. Pour travailler sur vos fonctionnalités et pousser vers GitHub :
+
+### 1. Travailler sur le service Participants
 ```bash
 cd /Users/mac/develop/WORKSPACE/IA_MASTER/PROJETS/eventhub
 
-# Initialiser le dépôt si ce n'est pas déjà fait
-git init
+# Basculer sur la branche participants-service
+git checkout feature/participants-service
 
-# Créer la branche 'develop'
-git checkout -b develop
+# Ajouter et commiter vos modifications
+git add backend/participants-service/
+git commit -m "feat(participants): add CRUD endpoints, search filter and Swagger UI"
 ```
 
-### Étape B : Branche & Commits pour `participants-service`
+### 2. Travailler sur le service Inscriptions
 ```bash
-# Se placer sur sa branche de feature
-git checkout -b feature/participants-service
+# Basculer sur la branche registrations-service
+git checkout feature/registrations-service
 
-# Ajouter les fichiers du service participants
-git add backend/participants-service/ docs/swagger.json
-
-# Effectuer des commits clairs et professionnels (Conventional Commits)
-git commit -m "feat(participants): add participant model, routes and controllers"
-git commit -m "feat(participants): add validation for student/professor/external types"
-git commit -m "docs(participants): add OpenAPI Swagger documentation on /api-docs"
-git commit -m "ci(docker): update Dockerfile to Node 25 Alpine"
-```
-
-### Étape C : Branche & Commits pour `registrations-service`
-```bash
-git checkout develop
-git checkout -b feature/registrations-service
-
-# Ajouter les fichiers du service inscriptions
+# Ajouter et commiter vos modifications
 git add backend/registrations-service/
-
-# Commits
-git commit -m "feat(registrations): implement HTTP clients for inter-service communication"
-git commit -m "feat(registrations): add capacity check logic before event registration"
-git commit -m "feat(registrations): add registration statistics and cancellation endpoints"
-git commit -m "docs(registrations): mount Swagger UI on /api-docs"
+git commit -m "feat(registrations): add inter-service validation and stats API"
 ```
 
-### Étape D : Pousser vers GitHub & créer les Pull Requests (PR)
+### 3. Pousser les branches vers votre dépôt GitHub
 ```bash
-# Ajouter l'URL de votre dépôt GitHub distant
+# Lier à votre dépôt distant GitHub
 git remote add origin https://github.com/<VOTRE_ORGANISATION_OU_USERNAME>/eventhub.git
 
-# Pousser la branche develop
+# Pousser develop et vos branches de fonctionnalités
 git push -u origin develop
-
-# Pousser vos branches de fonctionnalités
 git push -u origin feature/participants-service
 git push -u origin feature/registrations-service
 ```
 
-> 💡 **Sur GitHub** : Ouvrez une **Pull Request** de `feature/participants-service` vers `develop`, et faites valider par le Scrum Master (Mouhamed) et le Backend Lead (Lory).
-
 ---
 
-## 🧪 4. Exécuter les tests avant chaque commit
+## 🔀 Flux de travail des Pull Requests (PR)
 
-Pour garantir la Definition of Done (DoD) :
-
-```bash
-# Test participants-service
-cd backend/participants-service && npm test
-
-# Test registrations-service
-cd backend/registrations-service && npm test
-```
-
----
-
-## 📋 5. Fichiers et Dockerfiles mis à jour (Node 25)
-
-Tous les `Dockerfile` utilisent désormais la version **`node:25-alpine`** :
-- `backend/events-service/Dockerfile`
-- `backend/participants-service/Dockerfile`
-- `backend/registrations-service/Dockerfile`
-- `.github/workflows/backend-ci.yml` (Configuré avec `node-version: '25'`)
+1. Ouvrez une **Pull Request** depuis `feature/participants-service` vers `develop`.
+2. Le pipeline CI/CD GitHub Actions s'exécute automatiquement et valide les tests unitaires.
+3. Le Scrum Master (Mouhamed Ndiaye) ou le Backend Lead (Lory Doambe) valide la PR et effectue le Merge sur `develop`.
