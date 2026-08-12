@@ -115,20 +115,6 @@ services:
       participants-service:
         condition: service_started
 
-  # Frontend Web App React
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: eventhub-frontend
-    restart: always
-    ports:
-      - "3000:80"
-    depends_on:
-      - events-service
-      - participants-service
-      - registrations-service
-
 volumes:
   postgres_events_data:
   postgres_participants_data:

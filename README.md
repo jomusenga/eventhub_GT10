@@ -1,22 +1,19 @@
-<<<<<<< HEAD
-# EventHub - Plateforme Microservices de Gestion d'Événements
+# EventHub - Backend Microservices API
 
 > **Dakar Institute of Technology (DIT) — Examen DevOps Master 1 Intelligence Artificielle**
 
-EventHub est une plateforme web moderne conçue pour centraliser et automatiser l'organisation des événements académiques et culturels du DIT. Elle repose sur une architecture microservices découpée, conteneurisée et prête pour l'intégration continue.
+EventHub est une plateforme web backend moderne conçue pour centraliser et automatiser la gestion des événements académiques et culturels du DIT. Elle repose sur une architecture microservices pure, découpée et conteneurisée.
 
 ---
 
-## 🏛️ Architecture du Projet
+## 🏛️ Architecture Backend Microservices
 
-L'application est composée de trois microservices backend indépendants basés sur **Node.js 25** et **PostgreSQL**, ainsi qu'une interface web **React** :
+Le projet est composé de trois microservices backend indépendants basés sur **Node.js 25** et **PostgreSQL** :
 
 ```
-[ Frontend React (Port 3000) ]
-        │
-        ├──► events-service        (Port 3001) ──► PostgreSQL (events_db)
-        ├──► participants-service  (Port 3002) ──► PostgreSQL (participants_db)
-        └──► registrations-service (Port 3003) ──► PostgreSQL (registrations_db)
+events-service        (Port 3001) ──► PostgreSQL (events_db)
+participants-service  (Port 3002) ──► PostgreSQL (participants_db)
+registrations-service (Port 3003) ──► PostgreSQL (registrations_db)
 ```
 
 ### 1. `events-service` (Port 3001)
@@ -36,16 +33,15 @@ Assure la logique d'inscription en effectuant des contrôles inter-services en t
 
 ## 🚀 Démarrage Rapide
 
-### Option A : Déploiement Complet avec Docker Compose (Recommandé)
+### Option A : Déploiement avec Docker Compose (Recommandé)
 
-Pour construire les images Docker et démarrer les 3 bases PostgreSQL, les 3 microservices backend et le frontend en une seule commande :
+Pour construire les images Docker et démarrer les 3 bases PostgreSQL et les 3 microservices backend :
 
 ```bash
 docker compose up --build
 ```
 
-#### Accès aux services :
-- **Frontend Web App** : [http://localhost:3000](http://localhost:3000)
+#### Accès aux microservices et documentation Swagger UI :
 - **events-service** : [http://localhost:3001](http://localhost:3001) | Swagger : [http://localhost:3001/api-docs](http://localhost:3001/api-docs)
 - **participants-service** : [http://localhost:3002](http://localhost:3002) | Swagger : [http://localhost:3002/api-docs](http://localhost:3002/api-docs)
 - **registrations-service** : [http://localhost:3003](http://localhost:3003) | Swagger : [http://localhost:3003/api-docs](http://localhost:3003/api-docs)
@@ -75,16 +71,9 @@ npm install
 npm start
 ```
 
-#### 4. Frontend React
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
 ---
 
-## 📚 Endpoints API
+## 📚 Endpoints API REST
 
 ### Service Événements (`http://localhost:3001/api/events`)
 - `GET /` : Lister les événements (`?date=YYYY-MM-DD`, `?location=...`)
@@ -113,8 +102,6 @@ npm run dev
 
 ## 🧪 Exécution des Tests Unitaires
 
-Chaque microservice dispose de sa propre suite de tests unitaires :
-
 ```bash
 # Service Événements
 cd backend/events-service && npm test
@@ -130,21 +117,8 @@ cd backend/registrations-service && npm test
 
 ## ⚙️ Intégration Continue (CI/CD)
 
-Le projet intègre un pipeline GitHub Actions défini dans `.github/workflows/backend-ci.yml`. Il s'exécute automatiquement lors de chaque push ou Pull Request sur les branches `main` et `develop` :
-1. Récupération du code source (`checkout`).
-2. Configuration de l'environnement Node.js 25.
-3. Installation des dépendances et exécution des tests unitaires pour chaque microservice.
+Le pipeline GitHub Actions (`.github/workflows/backend-ci.yml`) s'exécute automatiquement lors de chaque push/PR sur `main` et `develop` :
+1. Checkout du code source.
+2. Configuration Node.js 25.
+3. Installation des dépendances et exécution des tests unitaires.
 4. Construction des images Docker multi-stage (`node:25-alpine`).
-
----
-
-## 👥 Organisation de l'Équipe
-- **Scrum Master** : Mouhamed Ndiaye
-- **Frontend** : Yveline Tibera
-- **Backend Lead** : Lory Doambe
-- **Backend** : Houleymatou Diallo (`participants-service` & `registrations-service`)
-- **DevOps** : Joseph Musenga Kabong
-=======
-# eventhub
-Projet Examen DevOps EventHub - Master 1 IA - DIT - GT10
->>>>>>> origin/develop
