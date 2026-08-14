@@ -1,0 +1,172 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "EventHub - Plateforme Microservices API (DIT DevOps)",
+    "version": "1.0.0",
+    "description": "Documentation Swagger complète combinant les 3 microservices backend EventHub : events-service, participants-service, registrations-service."
+  },
+  "servers": [
+    { "url": "http://localhost:3001", "description": "Service Événements (events-service)" },
+    { "url": "http://localhost:3002", "description": "Service Participants (participants-service)" },
+    { "url": "http://localhost:3003", "description": "Service Inscriptions (registrations-service)" }
+  ],
+  "paths": {
+    "/api/events": {
+      "get": {
+        "tags": ["Events Service"],
+        "summary": "Lister tous les événements",
+        "parameters": [
+          { "name": "date", "in": "query", "schema": { "type": "string" }, "description": "Filtre par date (YYYY-MM-DD)" },
+          { "name": "location", "in": "query", "schema": { "type": "string" }, "description": "Filtre par lieu" }
+        ],
+        "responses": { "200": { "description": "Succès" } }
+      },
+      "post": {
+        "tags": ["Events Service"],
+        "summary": "Créer un événement",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "date", "location", "max_capacity"],
+                "properties": {
+                  "title": { "type": "string", "example": "Conférence IA & DevOps DIT" },
+                  "description": { "type": "string", "example": "Présentation des microservices" },
+                  "date": { "type": "string", "example": "2026-08-20T10:00:00Z" },
+                  "location": { "type": "string", "example": "Amphi A DIT" },
+                  "max_capacity": { "type": "integer", "example": 100 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Événement créé" } }
+      }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "tags": ["Events Service"],
+        "summary": "Détails d'un événement",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Trouvé" }, "404": { "description": "Introuvable" } }
+      },
+      "put": {
+        "tags": ["Events Service"],
+        "summary": "Modifier un événement",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Mis à jour" } }
+      },
+      "delete": {
+        "tags": ["Events Service"],
+        "summary": "Supprimer un événement",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Supprimé" } }
+      }
+    },
+    "/api/participants": {
+      "get": {
+        "tags": ["Participants Service"],
+        "summary": "Lister / Rechercher participants",
+        "parameters": [{ "name": "search", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Succès" } }
+      },
+      "post": {
+        "tags": ["Participants Service"],
+        "summary": "Créer un participant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "type"],
+                "properties": {
+                  "name": { "type": "string", "example": "Houleymatou Diallo" },
+                  "email": { "type": "string", "example": "houleymatou.diallo@dit.sn" },
+                  "phone": { "type": "string", "example": "+221770000000" },
+                  "type": { "type": "string", "enum": ["étudiant", "professeur", "externe"], "example": "étudiant" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Créé" }, "409": { "description": "Email déjà utilisé" } }
+      }
+    },
+    "/api/participants/{id}": {
+      "get": {
+        "tags": ["Participants Service"],
+        "summary": "Profil participant par ID",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Trouvé" } }
+      },
+      "put": {
+        "tags": ["Participants Service"],
+        "summary": "Modifier profil participant",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Mis à jour" } }
+      },
+      "delete": {
+        "tags": ["Participants Service"],
+        "summary": "Supprimer participant",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Supprimé" } }
+      }
+    },
+    "/api/registrations": {
+      "post": {
+        "tags": ["Registrations Service"],
+        "summary": "Inscrire un participant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["event_id", "participant_id"],
+                "properties": {
+                  "event_id": { "type": "integer", "example": 1 },
+                  "participant_id": { "type": "integer", "example": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Inscrit avec succès" }, "400": { "description": "Événement complet" } }
+      }
+    },
+    "/api/registrations/{id}": {
+      "delete": {
+        "tags": ["Registrations Service"],
+        "summary": "Annuler inscription",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Annulé" } }
+      }
+    },
+    "/api/registrations/event/{eventId}": {
+      "get": {
+        "tags": ["Registrations Service"],
+        "summary": "Inscriptions d'un événement",
+        "parameters": [{ "name": "eventId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Succès" } }
+      }
+    },
+    "/api/registrations/participant/{participantId}": {
+      "get": {
+        "tags": ["Registrations Service"],
+        "summary": "Inscriptions d'un participant",
+        "parameters": [{ "name": "participantId", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Succès" } }
+      }
+    },
+    "/api/registrations/stats": {
+      "get": {
+        "tags": ["Registrations Service"],
+        "summary": "Statistiques d'inscription",
+        "responses": { "200": { "description": "Statistiques retournées" } }
+      }
+    }
+  }
+}

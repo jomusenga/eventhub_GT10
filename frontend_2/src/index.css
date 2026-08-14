@@ -1,0 +1,335 @@
+:root {
+  /* Palette inspirée du logo DIT : teal profond + accent turquoise/vert */
+  --color-bg: #F4F8F7;
+  --color-surface: #FFFFFF;
+  --color-ink: #0D2A2A;
+  --color-ink-soft: #52706E;
+  --color-primary: #0E3B3C;
+  --color-primary-dark: #082626;
+  --color-primary-light: #1B5C57;
+  --color-accent: #2FA88F;
+  --color-accent-dark: #24866F;
+  --color-border: #DCE7E4;
+  --color-danger: #C6432E;
+  --color-danger-bg: rgba(198, 67, 46, 0.1);
+  --color-success: #2F8F6B;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-card: 0 1px 2px rgba(9, 38, 38, 0.06), 0 8px 24px rgba(9, 38, 38, 0.06);
+  --shadow-card-hover: 0 4px 10px rgba(9, 38, 38, 0.08), 0 14px 32px rgba(9, 38, 38, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  color: var(--color-primary);
+  margin: 0 0 0.4rem 0;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 1.9rem;
+}
+
+p {
+  color: var(--color-ink-soft);
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.5rem 3.5rem;
+}
+
+/* --- Navbar --- */
+.navbar {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: white;
+  padding: 0.9rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 12px rgba(8, 38, 38, 0.18);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.navbar-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-primary-dark);
+  flex-shrink: 0;
+}
+
+.navbar-brand-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  color: white;
+  line-height: 1.1;
+}
+
+.navbar-brand-sub {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.02em;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 1.6rem;
+  font-size: 0.87rem;
+  font-weight: 500;
+}
+
+.navbar-links a {
+  opacity: 0.8;
+  transition: opacity 0.15s;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+}
+
+.navbar-links a:hover {
+  opacity: 1;
+  border-bottom-color: var(--color-accent);
+}
+
+/* --- Page header / hero --- */
+.page-header {
+  padding: 2.75rem 0 1.75rem;
+}
+
+.page-header h1 {
+  margin-bottom: 0.3rem;
+}
+
+/* --- Cards --- */
+.event-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.6rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(47, 168, 143, 0.35);
+}
+
+.event-card h3 {
+  margin-bottom: 0.3rem;
+  font-size: 1.15rem;
+}
+
+.event-meta {
+  color: var(--color-ink-soft);
+  font-size: 0.87rem;
+  display: flex;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(47, 168, 143, 0.12);
+  color: var(--color-accent-dark);
+  letter-spacing: 0.01em;
+}
+
+.badge.full {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* --- Buttons --- */
+.btn {
+  display: inline-block;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.68rem 1.35rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-dark);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent-dark);
+}
+
+/* --- Forms --- */
+.form-group {
+  margin-bottom: 1.1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  margin-bottom: 0.4rem;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(47, 168, 143, 0.15);
+}
+
+/* --- States --- */
+.state-message {
+  color: var(--color-ink-soft);
+  padding: 2.5rem 0;
+  text-align: center;
+}
+
+/* --- Dashboard stats --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.2rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.stat-label {
+  font-size: 0.82rem;
+  color: var(--color-ink-soft);
+  font-weight: 500;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  font-size: 0.82rem;
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+  font-weight: 500;
+}
