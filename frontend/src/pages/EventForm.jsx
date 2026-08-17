@@ -1,23 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { eventsApi } from '../services/api';
+import { validateEventFields } from '../utils/validation';
 
 const EMPTY_EVENT = { titre: '', description: '', date: '', lieu: '', capaciteMax: 50 };
 
 export default function EventForm() {
-  const { id } = useParams(); // absent = création, présent = modification
+  const { id } = useParams();
   const isEditing = Boolean(id);
   const navigate = useNavigate();
 
   const [form, setForm] = useState(EMPTY_EVENT);
   const [loading, setLoading] = useState(isEditing);
-  const [status, setStatus] = useState('idle'); // idle | submitting | error
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (!isEditing) return;
     eventsApi.getById(id)
-      .then((data) => setForm(data))
+      .then((data) => setForm({
+        titre: data.titre || '',
+        description: data.description || '',
+        date: data.date ? String(data.date).slice(0, 10) : '',
+        lieu: data.lieu || '',
+        capaciteMax: data.capaciteMax ?? 50
+      }))
       .catch(() => setErrorMsg("Impossible de charger l'événement."))
       .finally(() => setLoading(false));
   }, [id, isEditing]);
@@ -31,6 +38,13 @@ export default function EventForm() {
     e.preventDefault();
     setStatus('submitting');
     setErrorMsg('');
+
+    const errors = validateEventFields(form);
+    if (errors.length > 0) {
+      setStatus('error');
+      setErrorMsg(errors.join(' '));
+      return;
+    }
 
     try {
       if (isEditing) {
@@ -66,10 +80,10 @@ export default function EventForm() {
         <h1>{isEditing ? "Modifier l'événement" : 'Créer un événement'}</h1>
       </div>
 
-      <form className="event-card" onSubmit={handleSubmit}>
+      <form className="event-card" onSubmit={handleSubmit} noValidate>
         <div className="form-group">
           <label htmlFor="titre">Titre</label>
-          <input id="titre" name="titre" value={form.titre} onChange={handleChange} required />
+          <input id="titre" name="titre" value={form.titre} onChange={handleChange} minLength={3} required />
         </div>
 
         <div className="form-group">
@@ -84,12 +98,12 @@ export default function EventForm() {
 
         <div className="form-group">
           <label htmlFor="lieu">Lieu</label>
-          <input id="lieu" name="lieu" value={form.lieu} onChange={handleChange} required />
+          <input id="lieu" name="lieu" value={form.lieu} onChange={handleChange} minLength={2} required />
         </div>
 
         <div className="form-group">
           <label htmlFor="capaciteMax">Capacité maximale</label>
-          <input id="capaciteMax" name="capaciteMax" type="number" min="1" value={form.capaciteMax} onChange={handleChange} required />
+          <input id="capaciteMax" name="capaciteMax" type="number" min="1" max="10000" value={form.capaciteMax} onChange={handleChange} required />
         </div>
 
         {errorMsg && <p className="state-message" style={{ color: 'var(--color-danger)' }}>{errorMsg}</p>}

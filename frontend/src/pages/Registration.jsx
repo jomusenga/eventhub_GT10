@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { participantsApi, registrationsApi, eventsApi } from '../services/api';
+import { validateParticipantFields } from '../utils/validation';
 
 export default function Registration() {
   const { id: eventId } = useParams();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ nom: '', email: '', telephone: '', type: 'etudiant' });
-  const [status, setStatus] = useState('idle'); // idle | submitting | success | error
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleChange = (e) => {
@@ -19,12 +20,19 @@ export default function Registration() {
     setStatus('submitting');
     setErrorMsg('');
 
+    const fieldErrors = validateParticipantFields(form);
+    if (fieldErrors.length > 0) {
+      setStatus('error');
+      setErrorMsg(fieldErrors.join(' '));
+      return;
+    }
+
     try {
-      // Validation forte : on revérifie la disponibilité juste avant d'inscrire,
-      // pour éviter qu'une place prise entre-temps par quelqu'un d'autre
-      // (ou un bouton resté actif dans un onglet ouvert) ne crée une sur-réservation.
-      const currentEvent = await eventsApi.getById(eventId);
-      const placesRestantes = currentEvent.capaciteMax - (currentEvent.inscrits || 0);
+      const [availability, { count }] = await Promise.all([
+        eventsApi.checkAvailability(eventId),
+        registrationsApi.getCountByEvent(eventId)
+      ]);
+      const placesRestantes = (availability.maxCapacity || 0) - (count || 0);
       if (placesRestantes <= 0) {
         setStatus('error');
         setErrorMsg("Il n'y a plus de place disponible pour cet événement.");
@@ -33,8 +41,6 @@ export default function Registration() {
 
       const participant = await participantsApi.create(form);
       await registrationsApi.register(eventId, participant.id);
-      // Mémorise l'id du participant pour retrouver ses inscriptions plus tard
-      // (le projet n'a pas de système de connexion).
       localStorage.setItem('eventhub_participant_id', participant.id);
       setStatus('success');
     } catch (err) {
@@ -47,7 +53,10 @@ export default function Registration() {
     return (
       <div className="container">
         <div className="page-header">
-          <h1>Inscription confirmée 🎉</h1>
+          <h1 className="heading-with-icon">
+            <i className="fa-solid fa-circle-check meta-icon" aria-hidden="true"></i>
+            Inscription confirmée
+          </h1>
           <p>Tu recevras un email de confirmation prochainement.</p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
             <button className="btn btn-primary" onClick={() => navigate(`/events/${eventId}`)}>
@@ -68,10 +77,10 @@ export default function Registration() {
         <h1>Inscription à l'événement</h1>
       </div>
 
-      <form className="event-card" onSubmit={handleSubmit}>
+      <form className="event-card" onSubmit={handleSubmit} noValidate>
         <div className="form-group">
           <label htmlFor="nom">Nom complet</label>
-          <input id="nom" name="nom" value={form.nom} onChange={handleChange} required />
+          <input id="nom" name="nom" value={form.nom} onChange={handleChange} minLength={2} required />
         </div>
 
         <div className="form-group">
@@ -81,7 +90,17 @@ export default function Registration() {
 
         <div className="form-group">
           <label htmlFor="telephone">Téléphone</label>
-          <input id="telephone" name="telephone" value={form.telephone} onChange={handleChange} />
+          <input
+            id="telephone"
+            name="telephone"
+            type="tel"
+            inputMode="tel"
+            placeholder="+221 77 123 45 67"
+            pattern="^\+?[\d\s.\-]{8,20}$"
+            title="Au moins 8 chiffres, ex: +221771234567"
+            value={form.telephone}
+            onChange={handleChange}
+          />
         </div>
 
         <div className="form-group">

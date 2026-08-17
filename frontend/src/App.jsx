@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import AdminOnly from './components/AdminOnly';
 import EventsList from './pages/EventsList';
 import EventDetail from './pages/EventDetail';
 import EventForm from './pages/EventForm';
@@ -15,17 +16,21 @@ export default function App() {
     <>
       <Navbar />
       <Routes>
+        {/* Parcours étudiant */}
         <Route path="/" element={<EventsList />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/events/new" element={<EventForm />} />
         <Route path="/events/:id" element={<EventDetail />} />
-        <Route path="/events/:id/edit" element={<EventForm />} />
-        <Route path="/events/:id/inscrits" element={<EventRegistrations />} />
         <Route path="/events/:id/inscription" element={<Registration />} />
         <Route path="/mes-inscriptions" element={<MesInscriptions />} />
-        <Route path="/participants" element={<ParticipantsList />} />
-        <Route path="/participants/new" element={<ParticipantForm />} />
-        <Route path="/participants/:id/edit" element={<ParticipantForm />} />
+
+        {/* Parcours admin */}
+        <Route path="/dashboard" element={<AdminOnly><Dashboard /></AdminOnly>} />
+        <Route path="/admin/events" element={<AdminOnly><EventsList adminMode /></AdminOnly>} />
+        <Route path="/events/new" element={<AdminOnly><EventForm /></AdminOnly>} />
+        <Route path="/events/:id/edit" element={<AdminOnly><EventForm /></AdminOnly>} />
+        <Route path="/events/:id/inscrits" element={<AdminOnly><EventRegistrations /></AdminOnly>} />
+        <Route path="/participants" element={<AdminOnly><ParticipantsList /></AdminOnly>} />
+        <Route path="/participants/new" element={<AdminOnly><ParticipantForm /></AdminOnly>} />
+        <Route path="/participants/:id/edit" element={<AdminOnly><ParticipantForm /></AdminOnly>} />
       </Routes>
     </>
   );

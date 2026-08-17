@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { eventsApi } from '../services/api';
+import { eventsApi, enrichEventsWithInscrits } from '../services/api';
 import EventCard from '../components/EventCard';
 
 const MOCK_EVENTS = [
@@ -8,32 +8,34 @@ const MOCK_EVENTS = [
   { id: 3, titre: 'Séminaire Cybersécurité', description: 'Bonnes pratiques de sécurisation des APIs.', date: '2026-08-25', lieu: 'Amphi C', capaciteMax: 80, inscrits: 15 }
 ];
 
-export default function EventsList() {
-  const [allEvents, setAllEvents] = useState([]); // copie complète, pour le filtre local de secours
+export default function EventsList({ adminMode = false }) {
+  const [allEvents, setAllEvents] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterDate, setFilterDate] = useState('');
   const [filterLieu, setFilterLieu] = useState('');
 
-  const loadEvents = (filters = {}) => {
+  const loadEvents = async (filters = {}) => {
     setLoading(true);
-    eventsApi.getAll(filters)
-      .then((data) => {
-        setEvents(data);
-        if (!filters.date && !filters.lieu) setAllEvents(data);
-      })
-      .catch(() => {
-        setError('Impossible de contacter events-service, affichage de données de démo.');
-        setEvents(MOCK_EVENTS);
-        setAllEvents(MOCK_EVENTS);
-      })
-      .finally(() => setLoading(false));
+    setError(null);
+    try {
+      const data = await eventsApi.getAll(filters);
+      const withCounts = await enrichEventsWithInscrits(data);
+      setEvents(withCounts);
+      if (!filters.date && !filters.lieu) setAllEvents(withCounts);
+    } catch {
+      setError('Impossible de contacter events-service, affichage de données de démo.');
+      setEvents(MOCK_EVENTS);
+      setAllEvents(MOCK_EVENTS);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadEvents(); }, []);
 
-  const handleFilter = (e) => {
+  const handleFilter = async (e) => {
     e.preventDefault();
     const filters = {};
     if (filterDate) filters.date = filterDate;
@@ -44,18 +46,24 @@ export default function EventsList() {
       return;
     }
 
-    // Essaie d'abord le filtre côté serveur (events-service), sinon filtre localement
-    eventsApi.getAll(filters)
-      .then(setEvents)
-      .catch(() => {
-        setEvents(
-          allEvents.filter((ev) => {
-            const matchDate = filterDate ? ev.date === filterDate : true;
-            const matchLieu = filterLieu ? ev.lieu.toLowerCase().includes(filterLieu.toLowerCase()) : true;
-            return matchDate && matchLieu;
-          })
-        );
+    setLoading(true);
+    try {
+      const data = await eventsApi.getAll(filters);
+      const withCounts = await enrichEventsWithInscrits(data);
+      setEvents(withCounts);
+    } catch {
+      const filtered = allEvents.filter((ev) => {
+        const eventDate = String(ev.date || '').slice(0, 10);
+        const matchDate = filterDate ? eventDate === filterDate : true;
+        const matchLieu = filterLieu
+          ? String(ev.lieu || '').toLowerCase().includes(filterLieu.toLowerCase())
+          : true;
+        return matchDate && matchLieu;
       });
+      setEvents(filtered);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -69,16 +77,20 @@ export default function EventsList() {
   return (
     <div className="container">
       <div className="page-header">
-        <h1>Événements à venir</h1>
-        <p>Découvre et inscris-toi aux prochains événements du DIT.</p>
+        <h1>{adminMode ? 'Gestion des événements' : 'Événements à venir'}</h1>
+        <p>
+          {adminMode
+            ? 'Crée, modifie et suis les inscriptions des événements DIT.'
+            : 'Consulte les événements et inscris-toi en tant que participant.'}
+        </p>
       </div>
 
-      <form onSubmit={handleFilter} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="form-group" style={{ marginBottom: 0 }}>
+      <form onSubmit={handleFilter} className="filters-row">
+        <div className="form-group" style={{ marginBottom: 0, flex: '1 1 140px' }}>
           <label htmlFor="filterDate">Date</label>
           <input id="filterDate" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
         </div>
-        <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '160px' }}>
+        <div className="form-group" style={{ marginBottom: 0, flex: '2 1 160px' }}>
           <label htmlFor="filterLieu">Lieu</label>
           <input id="filterLieu" placeholder="Ex : Amphi A" value={filterLieu} onChange={(e) => setFilterLieu(e.target.value)} />
         </div>

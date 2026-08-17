@@ -1,59 +1,57 @@
-version: '3.8'
-
 services:
   # Base de données PostgreSQL pour Events
   db-events:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: eventhub-db-events
     restart: always
     environment:
-      POSTGRES_USER: event_user
-      POSTGRES_PASSWORD: event_password
-      POSTGRES_DB: events_db
+      POSTGRES_USER: ${EVENTS_DB_USER}
+      POSTGRES_PASSWORD: ${EVENTS_DB_PASSWORD}
+      POSTGRES_DB: ${EVENTS_DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_EVENTS_PORT}:5432"
     volumes:
       - postgres_events_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U event_user -d events_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   # Base de données PostgreSQL pour Participants
   db-participants:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: eventhub-db-participants
     restart: always
     environment:
-      POSTGRES_USER: participant_user
-      POSTGRES_PASSWORD: participant_password
-      POSTGRES_DB: participants_db
+      POSTGRES_USER: ${PARTICIPANTS_DB_USER}
+      POSTGRES_PASSWORD: ${PARTICIPANTS_DB_PASSWORD}
+      POSTGRES_DB: ${PARTICIPANTS_DB_NAME}
     ports:
-      - "5433:5432"
+      - "${DB_PARTICIPANTS_PORT}:5432"
     volumes:
       - postgres_participants_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U participant_user -d participants_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   # Base de données PostgreSQL pour Registrations
   db-registrations:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: eventhub-db-registrations
     restart: always
     environment:
-      POSTGRES_USER: registration_user
-      POSTGRES_PASSWORD: registration_password
-      POSTGRES_DB: registrations_db
+      POSTGRES_USER: ${REGISTRATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${REGISTRATIONS_DB_PASSWORD}
+      POSTGRES_DB: ${REGISTRATIONS_DB_NAME}
     ports:
-      - "5434:5432"
+      - "${DB_REGISTRATIONS_PORT}:5432"
     volumes:
       - postgres_registrations_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U registration_user -d registrations_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -66,11 +64,11 @@ services:
     container_name: eventhub-events-service
     restart: always
     ports:
-      - "3001:3001"
+      - "${EVENTS_PORT}:3001"
     environment:
       PORT: 3001
-      NODE_ENV: production
-      DATABASE_URL: postgresql://event_user:event_password@db-events:5432/events_db
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgresql://${EVENTS_DB_USER}:${EVENTS_DB_PASSWORD}@db-events:5432/${EVENTS_DB_NAME}
     depends_on:
       db-events:
         condition: service_healthy
@@ -83,11 +81,11 @@ services:
     container_name: eventhub-participants-service
     restart: always
     ports:
-      - "3002:3002"
+      - "${PARTICIPANTS_PORT}:3002"
     environment:
       PORT: 3002
-      NODE_ENV: production
-      DATABASE_URL: postgresql://participant_user:participant_password@db-participants:5432/participants_db
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgresql://${PARTICIPANTS_DB_USER}:${PARTICIPANTS_DB_PASSWORD}@db-participants:5432/${PARTICIPANTS_DB_NAME}
     depends_on:
       db-participants:
         condition: service_healthy
@@ -100,11 +98,11 @@ services:
     container_name: eventhub-registrations-service
     restart: always
     ports:
-      - "3003:3003"
+      - "${REGISTRATIONS_PORT}:3003"
     environment:
       PORT: 3003
-      NODE_ENV: production
-      DATABASE_URL: postgresql://registration_user:registration_password@db-registrations:5432/registrations_db
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgresql://${REGISTRATIONS_DB_USER}:${REGISTRATIONS_DB_PASSWORD}@db-registrations:5432/${REGISTRATIONS_DB_NAME}
       EVENTS_SERVICE_URL: http://events-service:3001
       PARTICIPANTS_SERVICE_URL: http://participants-service:3002
     depends_on:
@@ -115,7 +113,29 @@ services:
       participants-service:
         condition: service_started
 
+  # Frontend React (nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_EVENTS_API_URL: ${VITE_EVENTS_API_URL}
+        VITE_PARTICIPANTS_API_URL: ${VITE_PARTICIPANTS_API_URL}
+        VITE_REGISTRATIONS_API_URL: ${VITE_REGISTRATIONS_API_URL}
+    container_name: eventhub-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT}:80"
+    depends_on:
+      - events-service
+      - participants-service
+      - registrations-service
+
+# Volumes nommés : données PostgreSQL persistantes (survivent au restart / recreate)
 volumes:
   postgres_events_data:
+    name: hub_postgres_events_data
   postgres_participants_data:
+    name: hub_postgres_participants_data
   postgres_registrations_data:
+    name: hub_postgres_registrations_data
