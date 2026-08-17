@@ -155,9 +155,18 @@ Pipeline défini dans [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.ym
 | **CI — Tests** | `test-backend` (matrice des 3 microservices) | Toujours |
 | **CI — Frontend** | `build-frontend` (`npm run build`) | Toujours |
 | **CI — Docker** | `docker-build` (4 images, sans push) | Après tests + build OK |
-| **CD — Registry** | `docker-push` vers **GitHub Container Registry** | Push sur `main` / `develop` uniquement |
+| **CD — Registry** | `docker-push` vers **GHCR** | Push sur `main` / `develop` |
+| **CD — Deploy staging** | `deploy` : pull + compose + healthcheck | Push sur `main` |
+| **CD — Deploy prod** | **Railway** (auto depuis GitHub) | Push sur `main` |
 
-Images publiées (exemple) :
+### Déploiement automatisé (sans VPS)
+
+Deux niveaux de CD :
+
+1. **Staging CI** (GitHub Actions) : pull images GHCR + `compose up` + healthcheck sur le runner  
+2. **Production Railway** : déploiement public permanent (voir ci-dessous)
+
+Images publiées :
 
 ```
 ghcr.io/<owner>/eventhub-events-service:latest
@@ -166,9 +175,82 @@ ghcr.io/<owner>/eventhub-registrations-service:latest
 ghcr.io/<owner>/eventhub-frontend:latest
 ```
 
-Tags aussi générés : nom de branche (`main`, `develop`) et SHA du commit. Le tag `latest` n’est poussé que depuis `main`.
+> Astuce : rendez les packages GHCR **Public** (Settings du package) pour faciliter les pulls.
 
-> Les packages GHCR doivent être **publics** ou le compte Docker doit être authentifié pour les tirer. Le token `GITHUB_TOKEN` suffit pour le push depuis Actions.
+Script manuel (si un jour vous avez un VPS) : [`scripts/deploy.sh`](scripts/deploy.sh) + `docker-compose.prod.yml`.
+
+---
+
+## Déploiement Railway (recommandé)
+
+Railway ne lit pas `docker-compose.yml` tel quel : **1 service Railway = 1 microservice** (ou 1 Postgres).
+
+### 1. Créer le projet
+
+1. Compte sur [railway.app](https://railway.app) (GitHub login)
+2. **New Project** → **Deploy from GitHub repo** → `eventhub_GT10`
+3. Ne déploie pas tout le repo d’un coup : tu vas ajouter les services un par un
+
+### 2. Ajouter 3 bases PostgreSQL
+
+**+ New** → **Database** → **PostgreSQL** (×3), renomme-les :
+- `db-events`
+- `db-participants`
+- `db-registrations`
+
+### 3. Ajouter les 4 apps (même repo GitHub)
+
+Pour chaque service : **+ New** → **GitHub Repo** → même repo, puis dans **Settings** :
+
+| Service Railway | Root Directory |
+|---|---|
+| `events-service` | `/backend/events-service` |
+| `participants-service` | `/backend/participants-service` |
+| `registrations-service` | `/backend/registrations-service` |
+| `frontend` | `/frontend` |
+
+Chaque dossier a déjà un `railway.json` (builder Dockerfile).
+
+### 4. Variables d’environnement
+
+**events-service**
+```
+DATABASE_URL=${{db-events.DATABASE_URL}}
+NODE_ENV=production
+```
+
+**participants-service**
+```
+DATABASE_URL=${{db-participants.DATABASE_URL}}
+NODE_ENV=production
+```
+
+**registrations-service**
+```
+DATABASE_URL=${{db-registrations.DATABASE_URL}}
+NODE_ENV=production
+EVENTS_SERVICE_URL=https://${{events-service.RAILWAY_PUBLIC_DOMAIN}}
+PARTICIPANTS_SERVICE_URL=https://${{participants-service.RAILWAY_PUBLIC_DOMAIN}}
+```
+
+**frontend** (variables de **build**)
+```
+VITE_EVENTS_API_URL=https://${{events-service.RAILWAY_PUBLIC_DOMAIN}}
+VITE_PARTICIPANTS_API_URL=https://${{participants-service.RAILWAY_PUBLIC_DOMAIN}}
+VITE_REGISTRATIONS_API_URL=https://${{registrations-service.RAILWAY_PUBLIC_DOMAIN}}
+```
+
+### 5. Domaines publics
+
+Sur chaque service API + frontend → **Settings → Networking → Generate Domain**.
+
+Le frontend aura une URL du type `https://frontend-xxxx.up.railway.app`.
+
+### 6. CI/CD Railway
+
+Une fois le repo GitHub relié : **chaque push sur `main` redéploie automatiquement** les services Railway.
+
+En parallèle, GitHub Actions continue de faire tests + images GHCR + staging.
 
 ---
 
@@ -177,13 +259,15 @@ Tags aussi générés : nom de branche (`main`, `develop`) et SHA du commit. Le 
 ```
 EventHub/
 ├── .github/workflows/ci-cd.yml
+├── scripts/deploy.sh
 ├── backend/
-│   ├── events-service/
-│   ├── participants-service/
-│   └── registrations-service/
-├── frontend/                 # React + Vite + nginx (prod)
+│   ├── events-service/          (+ railway.json)
+│   ├── participants-service/    (+ railway.json)
+│   └── registrations-service/   (+ railway.json)
+├── frontend/                    (+ railway.json)
 ├── docs/
 ├── docker-compose.yml
+├── docker-compose.prod.yml
 ├── .env.example
 └── README.md
 ```
@@ -195,4 +279,4 @@ EventHub/
 - **Backend** : Node.js 20, Express, PostgreSQL 16, Swagger UI
 - **Frontend** : React 18, Vite, React Router
 - **Infra** : Docker multi-stage (`node:20-alpine`), Docker Compose, nginx
-- **CI/CD** : GitHub Actions → tests, build Docker, push GHCR
+- **CI/CD** : GitHub Actions (tests, GHCR, staging) + Railway (prod publique)

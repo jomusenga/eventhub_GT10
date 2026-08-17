@@ -1,0 +1,126 @@
+# Production : tire les images depuis GHCR (pas de build local).
+# Usage :
+#   export GHCR_OWNER=jomusenga IMAGE_TAG=latest
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+services:
+  db-events:
+    image: postgres:16-alpine
+    container_name: eventhub-db-events
+    restart: always
+    environment:
+      POSTGRES_USER: ${EVENTS_DB_USER}
+      POSTGRES_PASSWORD: ${EVENTS_DB_PASSWORD}
+      POSTGRES_DB: ${EVENTS_DB_NAME}
+    ports:
+      - "${DB_EVENTS_PORT}:5432"
+    volumes:
+      - postgres_events_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-participants:
+    image: postgres:16-alpine
+    container_name: eventhub-db-participants
+    restart: always
+    environment:
+      POSTGRES_USER: ${PARTICIPANTS_DB_USER}
+      POSTGRES_PASSWORD: ${PARTICIPANTS_DB_PASSWORD}
+      POSTGRES_DB: ${PARTICIPANTS_DB_NAME}
+    ports:
+      - "${DB_PARTICIPANTS_PORT}:5432"
+    volumes:
+      - postgres_participants_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-registrations:
+    image: postgres:16-alpine
+    container_name: eventhub-db-registrations
+    restart: always
+    environment:
+      POSTGRES_USER: ${REGISTRATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${REGISTRATIONS_DB_PASSWORD}
+      POSTGRES_DB: ${REGISTRATIONS_DB_NAME}
+    ports:
+      - "${DB_REGISTRATIONS_PORT}:5432"
+    volumes:
+      - postgres_registrations_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  events-service:
+    image: ghcr.io/${GHCR_OWNER}/eventhub-events-service:${IMAGE_TAG:-latest}
+    container_name: eventhub-events-service
+    restart: always
+    ports:
+      - "${EVENTS_PORT}:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgresql://${EVENTS_DB_USER}:${EVENTS_DB_PASSWORD}@db-events:5432/${EVENTS_DB_NAME}
+    depends_on:
+      db-events:
+        condition: service_healthy
+
+  participants-service:
+    image: ghcr.io/${GHCR_OWNER}/eventhub-participants-service:${IMAGE_TAG:-latest}
+    container_name: eventhub-participants-service
+    restart: always
+    ports:
+      - "${PARTICIPANTS_PORT}:3002"
+    environment:
+      PORT: 3002
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgresql://${PARTICIPANTS_DB_USER}:${PARTICIPANTS_DB_PASSWORD}@db-participants:5432/${PARTICIPANTS_DB_NAME}
+    depends_on:
+      db-participants:
+        condition: service_healthy
+
+  registrations-service:
+    image: ghcr.io/${GHCR_OWNER}/eventhub-registrations-service:${IMAGE_TAG:-latest}
+    container_name: eventhub-registrations-service
+    restart: always
+    ports:
+      - "${REGISTRATIONS_PORT}:3003"
+    environment:
+      PORT: 3003
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgresql://${REGISTRATIONS_DB_USER}:${REGISTRATIONS_DB_PASSWORD}@db-registrations:5432/${REGISTRATIONS_DB_NAME}
+      EVENTS_SERVICE_URL: http://events-service:3001
+      PARTICIPANTS_SERVICE_URL: http://participants-service:3002
+    depends_on:
+      db-registrations:
+        condition: service_healthy
+      events-service:
+        condition: service_started
+      participants-service:
+        condition: service_started
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/eventhub-frontend:${IMAGE_TAG:-latest}
+    container_name: eventhub-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT}:80"
+    depends_on:
+      - events-service
+      - participants-service
+      - registrations-service
+
+volumes:
+  postgres_events_data:
+    name: hub_postgres_events_data
+  postgres_participants_data:
+    name: hub_postgres_participants_data
+  postgres_registrations_data:
+    name: hub_postgres_registrations_data
