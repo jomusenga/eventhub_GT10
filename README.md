@@ -1,124 +1,198 @@
-# EventHub - Backend Microservices API
+# EventHub
 
 > **Dakar Institute of Technology (DIT) — Examen DevOps Master 1 Intelligence Artificielle**
 
-EventHub est une plateforme web backend moderne conçue pour centraliser et automatiser la gestion des événements académiques et culturels du DIT. Elle repose sur une architecture microservices pure, découpée et conteneurisée.
+Plateforme web de gestion des événements académiques et culturels du DIT. Architecture microservices (Node.js / PostgreSQL) + interface React.
 
 ---
 
-## 🏛️ Architecture Backend Microservices
-
-Le projet est composé de trois microservices backend indépendants basés sur **Node.js 25** et **PostgreSQL** :
+## Architecture
 
 ```
-events-service        (Port 3001) ──► PostgreSQL (events_db)
-participants-service  (Port 3002) ──► PostgreSQL (participants_db)
-registrations-service (Port 3003) ──► PostgreSQL (registrations_db)
+┌─────────────┐     ┌──────────────────────┐     ┌──────────────┐
+│  Frontend   │────►│  events-service      │────►│  events_db   │
+│  React/Vite │     │  :3001               │     │  PostgreSQL  │
+│  :80 / :5173│────►│  participants-service│────►│  participants│
+│             │     │  :3002               │     │  _db         │
+│             │────►│  registrations-service────►│  registrations│
+└─────────────┘     │  :3003               │     │  _db         │
+                    └──────────────────────┘     └──────────────┘
 ```
 
-### 1. `events-service` (Port 3001)
-Gère le cycle de vie des événements académiques (création, édition, suppression, filtrage par date/lieu, consultation de la capacité maximale).
+| Composant | Rôle | Port |
+|---|---|---|
+| `frontend` | Interface React (étudiant / admin) | 80 (Docker) / 5173 (dev) |
+| `events-service` | CRUD événements, capacité, disponibilité | 3001 |
+| `participants-service` | Profils participants (email unique, recherche) | 3002 |
+| `registrations-service` | Inscriptions + contrôles inter-services + stats | 3003 |
 
-### 2. `participants-service` (Port 3002)
-Gère les profils des participants (étudiants, professeurs, intervenants externes) avec contrôle d'unicité des adresses email et recherche dynamique.
-
-### 3. `registrations-service` (Port 3003)
-Assure la logique d'inscription en effectuant des contrôles inter-services en temps réel :
-- Vérification de l'existence du participant auprès de `participants-service`.
-- Vérification de l'existence et de la capacité disponible auprès de `events-service`.
-- Invalidation automatique si l'événement est complet.
-- Génération des statistiques d'inscription globales et par événement.
+`registrations-service` appelle les deux autres services pour vérifier l’existence du participant, la capacité de l’événement, et refuse l’inscription si l’événement est complet.
 
 ---
 
-## 🚀 Démarrage Rapide
+## Prérequis
 
-### Option A : Déploiement avec Docker Compose (Recommandé)
+- Docker & Docker Compose **ou**
+- Node.js 20+, npm, et 3 instances PostgreSQL (si lancement manuel)
 
-Pour construire les images Docker et démarrer les 3 bases PostgreSQL et les 3 microservices backend :
+---
+
+## Démarrage rapide (Docker — recommandé)
 
 ```bash
+# À la racine du projet
+cp .env.example .env
 docker compose up --build
 ```
 
-#### Accès aux microservices et documentation Swagger UI :
-- **events-service** : [http://localhost:3001](http://localhost:3001) | Swagger : [http://localhost:3001/api-docs](http://localhost:3001/api-docs)
-- **participants-service** : [http://localhost:3002](http://localhost:3002) | Swagger : [http://localhost:3002/api-docs](http://localhost:3002/api-docs)
-- **registrations-service** : [http://localhost:3003](http://localhost:3003) | Swagger : [http://localhost:3003/api-docs](http://localhost:3003/api-docs)
+| Service | URL |
+|---|---|
+| Frontend | http://localhost |
+| events-service + Swagger | http://localhost:3001 · http://localhost:3001/api-docs |
+| participants-service + Swagger | http://localhost:3002 · http://localhost:3002/api-docs |
+| registrations-service + Swagger | http://localhost:3003 · http://localhost:3003/api-docs |
+
+Arrêt : `docker compose down`  
+Arrêt + suppression des volumes DB : `docker compose down -v`
 
 ---
 
-### Option B : Lancement Manuel en Développement Local
+## Développement local
 
-#### 1. Service Événements
+### Backend
+
+Chaque service a besoin d’une base PostgreSQL et d’un fichier `.env` (voir les variables dans `.env.example` à la racine).
+
 ```bash
-cd backend/events-service
-npm install
-npm start
+cd backend/events-service && npm install && npm start
+cd backend/participants-service && npm install && npm start
+cd backend/registrations-service && npm install && npm start
 ```
 
-#### 2. Service Participants
-```bash
-cd backend/participants-service
-npm install
-npm start
-```
+### Frontend
 
-#### 3. Service Inscriptions
 ```bash
-cd backend/registrations-service
+cd frontend
+cp .env.example .env   # URLs des 3 APIs
 npm install
-npm start
+npm run dev            # http://localhost:5173
 ```
 
 ---
 
-## 📚 Endpoints API REST
+## Frontend — parcours utilisateur
 
-### Service Événements (`http://localhost:3001/api/events`)
-- `GET /` : Lister les événements (`?date=YYYY-MM-DD`, `?location=...`)
-- `POST /` : Créer un nouvel événement
-- `GET /:id` : Consulter les détails d'un événement
-- `PUT /:id` : Modifier un événement
-- `DELETE /:id` : Supprimer un événement
-- `GET /:id/availability` : Vérifier la disponibilité et la capacité
+Rôle stocké en `localStorage` (`etudiant` par défaut, bascule possible vers `admin`).
 
-### Service Participants (`http://localhost:3002/api/participants`)
-- `GET /` : Lister / rechercher des participants (`?search=nom_ou_email`)
-- `POST /` : Créer un profil participant (`type`: `étudiant`, `professeur`, `externe`)
-- `GET /:id` : Consulter le profil d'un participant
-- `PUT /:id` : Modifier le profil d'un participant
-- `DELETE /:id` : Supprimer un participant
-
-### Service Inscriptions (`http://localhost:3003/api/registrations`)
-- `POST /` : Inscrire un participant à un événement
-- `DELETE /:id` : Annuler une inscription
-- `GET /event/:eventId` : Lister les inscriptions d'un événement
-- `GET /participant/:participantId` : Lister les inscriptions d'un participant
-- `GET /event/:eventId/count` : Obtenir le nombre d'inscrits en temps réel
-- `GET /stats` : Statistiques d'inscriptions
+| Route | Accès | Description |
+|---|---|---|
+| `/` | Public | Liste des événements |
+| `/events/:id` | Public | Détail + places restantes |
+| `/events/:id/inscription` | Étudiant | S’inscrire |
+| `/mes-inscriptions` | Étudiant | Voir / annuler ses inscriptions |
+| `/dashboard` | Admin | Tableau de bord |
+| `/admin/events` | Admin | Gestion des événements |
+| `/events/new`, `/events/:id/edit` | Admin | Créer / modifier un événement |
+| `/events/:id/inscrits` | Admin | Inscrits d’un événement |
+| `/participants`, `/participants/new`, `/participants/:id/edit` | Admin | Gestion des participants |
 
 ---
 
-## 🧪 Exécution des Tests Unitaires
+## API REST
+
+### Événements — `http://localhost:3001/api/events`
+
+| Méthode | Chemin | Description |
+|---|---|---|
+| `GET` | `/` | Lister (`?date=YYYY-MM-DD`, `?location=...`) |
+| `POST` | `/` | Créer |
+| `GET` | `/:id` | Détail |
+| `PUT` | `/:id` | Modifier |
+| `DELETE` | `/:id` | Supprimer |
+| `GET` | `/:id/availability` | Capacité / places restantes |
+
+### Participants — `http://localhost:3002/api/participants`
+
+| Méthode | Chemin | Description |
+|---|---|---|
+| `GET` | `/` | Lister / rechercher (`?search=...`) |
+| `POST` | `/` | Créer (`type` : `étudiant`, `professeur`, `externe`) |
+| `GET` | `/:id` | Détail |
+| `PUT` | `/:id` | Modifier |
+| `DELETE` | `/:id` | Supprimer |
+
+### Inscriptions — `http://localhost:3003/api/registrations`
+
+| Méthode | Chemin | Description |
+|---|---|---|
+| `POST` | `/` | Inscrire un participant |
+| `DELETE` | `/:id` | Annuler |
+| `GET` | `/event/:eventId` | Inscriptions d’un événement |
+| `GET` | `/participant/:participantId` | Inscriptions d’un participant |
+| `GET` | `/event/:eventId/count` | Nombre d’inscrits |
+| `GET` | `/stats` | Statistiques globales |
+
+---
+
+## Tests
 
 ```bash
-# Service Événements
 cd backend/events-service && npm test
-
-# Service Participants
 cd backend/participants-service && npm test
-
-# Service Inscriptions
 cd backend/registrations-service && npm test
 ```
 
 ---
 
-## ⚙️ Intégration Continue (CI/CD)
+## CI/CD (GitHub Actions)
 
-Le pipeline GitHub Actions (`.github/workflows/backend-ci.yml`) s'exécute automatiquement lors de chaque push/PR sur `main` et `develop` :
-1. Checkout du code source.
-2. Configuration Node.js 25.
-3. Installation des dépendances et exécution des tests unitaires.
-4. Construction des images Docker multi-stage (`node:25-alpine`).
+Pipeline défini dans [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
+
+**Déclencheurs** : push et pull request sur `main` et `develop`.
+
+| Étape | Job | Quand |
+|---|---|---|
+| **CI — Tests** | `test-backend` (matrice des 3 microservices) | Toujours |
+| **CI — Frontend** | `build-frontend` (`npm run build`) | Toujours |
+| **CI — Docker** | `docker-build` (4 images, sans push) | Après tests + build OK |
+| **CD — Registry** | `docker-push` vers **GitHub Container Registry** | Push sur `main` / `develop` uniquement |
+
+Images publiées (exemple) :
+
+```
+ghcr.io/<owner>/eventhub-events-service:latest
+ghcr.io/<owner>/eventhub-participants-service:latest
+ghcr.io/<owner>/eventhub-registrations-service:latest
+ghcr.io/<owner>/eventhub-frontend:latest
+```
+
+Tags aussi générés : nom de branche (`main`, `develop`) et SHA du commit. Le tag `latest` n’est poussé que depuis `main`.
+
+> Les packages GHCR doivent être **publics** ou le compte Docker doit être authentifié pour les tirer. Le token `GITHUB_TOKEN` suffit pour le push depuis Actions.
+
+---
+
+## Structure du dépôt
+
+```
+EventHub/
+├── .github/workflows/ci-cd.yml
+├── backend/
+│   ├── events-service/
+│   ├── participants-service/
+│   └── registrations-service/
+├── frontend/                 # React + Vite + nginx (prod)
+├── docs/
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
+
+---
+
+## Stack
+
+- **Backend** : Node.js 20, Express, PostgreSQL 16, Swagger UI
+- **Frontend** : React 18, Vite, React Router
+- **Infra** : Docker multi-stage (`node:20-alpine`), Docker Compose, nginx
+- **CI/CD** : GitHub Actions → tests, build Docker, push GHCR
