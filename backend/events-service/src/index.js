@@ -7,10 +7,10 @@ const startServer = async () => {
   try {
     await initDb();
     app.listen(PORT, () => {
-      console.log(`🚀 [events-service] démarré sur http://localhost:${PORT}`);
+      console.log(`[events-service] démarré sur http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error('❌ Impossible de démarrer events-service:', error);
+    console.error('[events-service] Impossible de démarrer:', error);
     process.exit(1);
   }
 };

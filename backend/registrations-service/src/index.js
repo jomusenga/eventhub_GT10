@@ -7,10 +7,10 @@ const startServer = async () => {
   try {
     await initDb();
     app.listen(PORT, () => {
-      console.log(`🚀 [registrations-service] démarré sur http://localhost:${PORT}`);
+      console.log(`[registrations-service] démarré sur http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error('❌ Impossible de démarrer registrations-service:', error);
+    console.error('[registrations-service] Impossible de démarrer:', error);
     process.exit(1);
   }
 };

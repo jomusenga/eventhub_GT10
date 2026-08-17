@@ -7,10 +7,10 @@ const startServer = async () => {
   try {
     await initDb();
     app.listen(PORT, () => {
-      console.log(`🚀 [participants-service] démarré sur http://localhost:${PORT}`);
+      console.log(`[participants-service] démarré sur http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error('❌ Impossible de démarrer participants-service:', error);
+    console.error('[participants-service] Impossible de démarrer:', error);
     process.exit(1);
   }
 };

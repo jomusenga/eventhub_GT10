@@ -1,6 +1,5 @@
 import { participantModel } from '../models/participantModel.js';
-
-const VALID_TYPES = ['étudiant', 'professeur', 'externe'];
+import { validateParticipantPayload } from '../utils/validation.js';
 
 export const getAllParticipants = async (req, res, next) => {
   try {
@@ -29,21 +28,11 @@ export const createParticipant = async (req, res, next) => {
   try {
     const { name, email, phone, type } = req.body;
 
-    if (!name || !email || !type) {
-      return res.status(400).json({
-        success: false,
-        message: 'Les champs name, email et type sont obligatoires'
-      });
+    const errors = validateParticipantPayload({ name, email, phone, type });
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, message: errors.join(' ; ') });
     }
 
-    if (!VALID_TYPES.includes(type.toLowerCase())) {
-      return res.status(400).json({
-        success: false,
-        message: `Le type doit être l'un des suivants: ${VALID_TYPES.join(', ')}`
-      });
-    }
-
-    // Check duplicate email
     const existing = await participantModel.findByEmail(email);
     if (existing) {
       return res.status(409).json({
@@ -53,10 +42,10 @@ export const createParticipant = async (req, res, next) => {
     }
 
     const participant = await participantModel.create({
-      name,
-      email,
-      phone,
-      type: type.toLowerCase()
+      name: String(name).trim(),
+      email: String(email).trim().toLowerCase(),
+      phone: phone ? String(phone).trim() : null,
+      type: String(type).toLowerCase()
     });
 
     res.status(201).json({ success: true, message: 'Participant créé avec succès', data: participant });
@@ -73,24 +62,35 @@ export const updateParticipant = async (req, res, next) => {
       return res.status(404).json({ success: false, message: `Participant introuvable avec l'ID ${id}` });
     }
 
-    if (req.body.type && !VALID_TYPES.includes(req.body.type.toLowerCase())) {
-      return res.status(400).json({
-        success: false,
-        message: `Le type doit être l'un des suivants: ${VALID_TYPES.join(', ')}`
-      });
+    const payload = {
+      name: req.body.name ?? existing.name,
+      email: req.body.email ?? existing.email,
+      phone: req.body.phone !== undefined ? req.body.phone : existing.phone,
+      type: req.body.type ?? existing.type
+    };
+
+    const errors = validateParticipantPayload(payload);
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, message: errors.join(' ; ') });
     }
 
-    if (req.body.email && req.body.email.toLowerCase() !== existing.email.toLowerCase()) {
-      const emailCheck = await participantModel.findByEmail(req.body.email);
+    if (String(payload.email).toLowerCase() !== existing.email.toLowerCase()) {
+      const emailCheck = await participantModel.findByEmail(payload.email);
       if (emailCheck) {
         return res.status(409).json({
           success: false,
-          message: `L'email '${req.body.email}' est déjà utilisé par un autre participant`
+          message: `L'email '${payload.email}' est déjà utilisé par un autre participant`
         });
       }
     }
 
-    const updated = await participantModel.update(id, req.body);
+    const updated = await participantModel.update(id, {
+      name: String(payload.name).trim(),
+      email: String(payload.email).trim().toLowerCase(),
+      phone: payload.phone ? String(payload.phone).trim() : null,
+      type: String(payload.type).toLowerCase()
+    });
+
     res.json({ success: true, message: 'Profil du participant mis à jour', data: updated });
   } catch (error) {
     next(error);
