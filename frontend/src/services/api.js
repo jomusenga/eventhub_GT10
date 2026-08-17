@@ -35,16 +35,33 @@ async function request(url, options = {}) {
 /** Backend → Frontend (événement) */
 function mapEventFromBackend(event) {
   if (!event) return event;
+  const rawDate = event.date ?? '';
+  const dateOnly = rawDate ? String(rawDate).slice(0, 10) : '';
   return {
     ...event,
     titre: event.title ?? event.titre,
     lieu: event.location ?? event.lieu,
     capaciteMax: event.max_capacity ?? event.capaciteMax,
-    // on garde aussi les noms backend au cas où
+    date: dateOnly,
     title: event.title,
     location: event.location,
     max_capacity: event.max_capacity
   };
+}
+
+/** Frontend `etudiant` ↔ backend `étudiant` */
+function mapTypeToBackend(type) {
+  if (!type) return type;
+  const normalized = String(type).toLowerCase();
+  if (normalized === 'etudiant' || normalized === 'étudiant') return 'étudiant';
+  return normalized;
+}
+
+function mapTypeFromBackend(type) {
+  if (!type) return type;
+  const normalized = String(type).toLowerCase();
+  if (normalized === 'étudiant' || normalized === 'etudiant') return 'etudiant';
+  return normalized;
 }
 
 /** Backend → Frontend (participant) */
@@ -54,6 +71,7 @@ function mapParticipantFromBackend(participant) {
     ...participant,
     nom: participant.name ?? participant.nom,
     telephone: participant.phone ?? participant.telephone,
+    type: mapTypeFromBackend(participant.type),
     name: participant.name,
     phone: participant.phone
   };
@@ -104,11 +122,11 @@ export const eventsApi = {
 
   create: async (data) => {
     const payload = {
-      title: data.title || data.titre,
+      title: data.titre ?? data.title,
       description: data.description,
       date: data.date,
-      location: data.location || data.lieu,
-      max_capacity: data.max_capacity ?? data.capaciteMax
+      location: data.lieu ?? data.location,
+      max_capacity: data.capaciteMax ?? data.max_capacity
     };
     const res = await request(`${EVENTS_API_URL}/api/events`, {
       method: 'POST',
@@ -119,11 +137,11 @@ export const eventsApi = {
 
   update: async (id, data) => {
     const payload = {
-      title: data.title || data.titre,
+      title: data.titre ?? data.title,
       description: data.description,
       date: data.date,
-      location: data.location || data.lieu,
-      max_capacity: data.max_capacity ?? data.capaciteMax
+      location: data.lieu ?? data.location,
+      max_capacity: data.capaciteMax ?? data.max_capacity
     };
     const res = await request(`${EVENTS_API_URL}/api/events/${id}`, {
       method: 'PUT',
@@ -164,10 +182,10 @@ export const participantsApi = {
 
   create: async (data) => {
     const payload = {
-      name: data.name || data.nom,
+      name: data.nom ?? data.name,
       email: data.email,
-      phone: data.phone || data.telephone,
-      type: data.type
+      phone: data.telephone ?? data.phone,
+      type: mapTypeToBackend(data.type)
     };
     const res = await request(`${PARTICIPANTS_API_URL}/api/participants`, {
       method: 'POST',
@@ -178,10 +196,10 @@ export const participantsApi = {
 
   update: async (id, data) => {
     const payload = {
-      name: data.name || data.nom,
+      name: data.nom ?? data.name,
       email: data.email,
-      phone: data.phone || data.telephone,
-      type: data.type
+      phone: data.telephone ?? data.phone,
+      type: mapTypeToBackend(data.type)
     };
     const res = await request(`${PARTICIPANTS_API_URL}/api/participants/${id}`, {
       method: 'PUT',
@@ -242,3 +260,16 @@ export const registrationsApi = {
     };
   }
 };
+/** Ajoute le nombre d'inscrits (places prises) a chaque evenement */
+export async function enrichEventsWithInscrits(events = []) {
+  return Promise.all(
+    events.map(async (event) => {
+      try {
+        const { count } = await registrationsApi.getCountByEvent(event.id);
+        return { ...event, inscrits: count ?? 0 };
+      } catch {
+        return { ...event, inscrits: event.inscrits ?? 0 };
+      }
+    })
+  );
+}

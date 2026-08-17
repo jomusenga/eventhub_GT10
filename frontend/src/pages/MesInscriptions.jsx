@@ -80,8 +80,8 @@ export default function MesInscriptions() {
             <h3>{reg.event ? reg.event.titre : `Événement #${reg.eventId}`}</h3>
             {reg.event && (
               <div className="event-meta">
-                <span>📅 {reg.event.date}</span>
-                <span>📍 {reg.event.lieu}</span>
+                <span><i className="fa-solid fa-calendar-days meta-icon" aria-hidden="true"></i>{reg.event.date}</span>
+                <span><i className="fa-solid fa-location-dot meta-icon" aria-hidden="true"></i>{reg.event.lieu}</span>
               </div>
             )}
             <button

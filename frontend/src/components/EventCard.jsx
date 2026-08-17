@@ -10,10 +10,12 @@ export default function EventCard({ event }) {
         <h3>{event.titre}</h3>
         <p>{event.description}</p>
         <div className="event-meta">
-          <span>📅 {event.date}</span>
-          <span>📍 {event.lieu}</span>
+          <span><i className="fa-solid fa-calendar-days meta-icon" aria-hidden="true"></i>{event.date}</span>
+          <span><i className="fa-solid fa-location-dot meta-icon" aria-hidden="true"></i>{event.lieu}</span>
           <span className={`badge ${complet ? 'full' : ''}`}>
-            {complet ? 'Complet' : `${placesRestantes} places restantes`}
+            {complet
+              ? 'Complet'
+              : `${placesRestantes}/${event.capaciteMax} places`}
           </span>
         </div>
       </div>

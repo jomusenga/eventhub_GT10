@@ -21,12 +21,12 @@ export default function Dashboard() {
           participantsApi.getAll()
         ]);
 
-        // Pour chaque événement, on récupère ses stats d'inscription
+        // Pour chaque événement, on récupère le nombre d'inscrits
         const eventsWithStats = await Promise.all(
           eventsData.map(async (event) => {
             try {
-              const stats = await registrationsApi.getStats(event.id);
-              return { ...event, inscrits: stats.total ?? 0 };
+              const { count } = await registrationsApi.getCountByEvent(event.id);
+              return { ...event, inscrits: count ?? 0 };
             } catch {
               return { ...event, inscrits: event.inscrits ?? 0 };
             }
@@ -95,8 +95,8 @@ export default function Dashboard() {
             <div key={event.id} className="event-card">
               <h3>{event.titre}</h3>
               <div className="event-meta">
-                <span>📅 {event.date}</span>
-                <span>📍 {event.lieu}</span>
+                <span><i className="fa-solid fa-calendar-days meta-icon" aria-hidden="true"></i>{event.date}</span>
+                <span><i className="fa-solid fa-location-dot meta-icon" aria-hidden="true"></i>{event.lieu}</span>
               </div>
               <div className="progress-row">
                 <div className="progress-bar">

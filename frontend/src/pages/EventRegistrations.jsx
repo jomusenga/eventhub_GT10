@@ -59,8 +59,8 @@ export default function EventRegistrations() {
             <h3>{reg.participant ? reg.participant.nom : `Participant #${reg.participantId}`}</h3>
             {reg.participant && (
               <div className="event-meta">
-                <span>✉️ {reg.participant.email}</span>
-                {reg.participant.telephone && <span>📞 {reg.participant.telephone}</span>}
+                <span><i className="fa-solid fa-envelope meta-icon" aria-hidden="true"></i>{reg.participant.email}</span>
+                {reg.participant.telephone && <span><i className="fa-solid fa-phone meta-icon" aria-hidden="true"></i>{reg.participant.telephone}</span>}
               </div>
             )}
           </div>
