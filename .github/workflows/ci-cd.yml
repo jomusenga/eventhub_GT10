@@ -179,8 +179,67 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VITE_EVENTS_API_URL=http://localhost:3001
-            VITE_PARTICIPANTS_API_URL=http://localhost:3002
-            VITE_REGISTRATIONS_API_URL=http://localhost:3003
+            VITE_EVENTS_API_URL=${{ vars.PUBLIC_EVENTS_API_URL || 'http://localhost:3001' }}
+            VITE_PARTICIPANTS_API_URL=${{ vars.PUBLIC_PARTICIPANTS_API_URL || 'http://localhost:3002' }}
+            VITE_REGISTRATIONS_API_URL=${{ vars.PUBLIC_REGISTRATIONS_API_URL || 'http://localhost:3003' }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # ─── CD : déploiement auto (sans VPS) sur le runner Actions ─────────────
+  # Tire les images GHCR, démarre la stack, vérifie /health, puis arrête.
+  deploy:
+    name: Deploy (staging CI)
+    runs-on: ubuntu-latest
+    needs: [docker-push]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Préparer .env
+        run: |
+          cp .env.example .env
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "GHCR_OWNER=$OWNER" >> .env
+          echo "IMAGE_TAG=latest" >> .env
+
+      - name: Pull & démarrer la stack
+        run: |
+          set -e
+          docker compose -f docker-compose.prod.yml --env-file .env pull
+          docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+      - name: Attendre les healthchecks
+        run: |
+          set -e
+          for i in $(seq 1 30); do
+            E=$(curl -sf http://localhost:3001/health && echo ok || echo fail)
+            P=$(curl -sf http://localhost:3002/health && echo ok || echo fail)
+            R=$(curl -sf http://localhost:3003/health && echo ok || echo fail)
+            F=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost/ || true)
+            echo "try $i — events=$E participants=$P registrations=$R frontend=$F"
+            if [ "$E" = "ok" ] && [ "$P" = "ok" ] && [ "$R" = "ok" ] && [ "$F" = "200" ]; then
+              echo "Deploy staging OK"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Healthcheck timeout"
+          docker compose -f docker-compose.prod.yml --env-file .env ps
+          docker compose -f docker-compose.prod.yml --env-file .env logs --tail=80
+          exit 1
+
+      - name: Arrêter la stack
+        if: always()
+        run: docker compose -f docker-compose.prod.yml --env-file .env down -v
