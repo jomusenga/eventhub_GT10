@@ -1,4 +1,5 @@
 import { eventModel } from '../models/eventModel.js';
+import { validateEventPayload } from '../utils/validation.js';
 
 export const getAllEvents = async (req, res, next) => {
   try {
@@ -27,25 +28,16 @@ export const createEvent = async (req, res, next) => {
   try {
     const { title, description, date, location, max_capacity } = req.body;
 
-    if (!title || !date || !location || !max_capacity) {
-      return res.status(400).json({
-        success: false,
-        message: 'Les champs title, date, location et max_capacity sont obligatoires'
-      });
-    }
-
-    if (isNaN(Number(max_capacity)) || Number(max_capacity) <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'max_capacity doit être un nombre entier strictement positif'
-      });
+    const errors = validateEventPayload({ title, description, date, location, max_capacity });
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, message: errors.join(' ; ') });
     }
 
     const event = await eventModel.create({
-      title,
-      description,
+      title: String(title).trim(),
+      description: description ? String(description).trim() : '',
       date,
-      location,
+      location: String(location).trim(),
       max_capacity: parseInt(max_capacity, 10)
     });
 
@@ -63,7 +55,27 @@ export const updateEvent = async (req, res, next) => {
       return res.status(404).json({ success: false, message: `Événement introuvable avec l'ID ${id}` });
     }
 
-    const updated = await eventModel.update(id, req.body);
+    const payload = {
+      title: req.body.title ?? existing.title,
+      description: req.body.description !== undefined ? req.body.description : existing.description,
+      date: req.body.date ?? existing.date,
+      location: req.body.location ?? existing.location,
+      max_capacity: req.body.max_capacity ?? existing.max_capacity
+    };
+
+    const errors = validateEventPayload(payload);
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, message: errors.join(' ; ') });
+    }
+
+    const updated = await eventModel.update(id, {
+      title: String(payload.title).trim(),
+      description: payload.description ? String(payload.description).trim() : '',
+      date: payload.date,
+      location: String(payload.location).trim(),
+      max_capacity: parseInt(payload.max_capacity, 10)
+    });
+
     res.json({ success: true, message: 'Événement mis à jour', data: updated });
   } catch (error) {
     next(error);
