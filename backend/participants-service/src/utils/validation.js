@@ -1,4 +1,4 @@
-const VALID_TYPES = ['étudiant', 'professeur', 'externe'];
+const VALID_TYPES = ['étudiant', 'etudiant', 'professeur', 'externe'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 const PHONE_REGEX = /^\+?[\d\s.-]{8,20}$/;
 
@@ -12,6 +12,14 @@ function isValidPhone(phone) {
   if (!PHONE_REGEX.test(value)) return false;
   const digits = value.replace(/\D/g, '');
   return digits.length >= 8 && digits.length <= 15;
+}
+
+function normalizeType(type) {
+  const value = String(type || '').trim().toLowerCase();
+  if (value === 'etudiant' || value === 'étudiant') return 'étudiant';
+  if (value === 'professeur') return 'professeur';
+  if (value === 'externe') return 'externe';
+  return value;
 }
 
 function validateParticipantPayload({ name, email, phone, type }, { partial = false } = {}) {
@@ -34,12 +42,13 @@ function validateParticipantPayload({ name, email, phone, type }, { partial = fa
   }
 
   if (!partial || type !== undefined) {
-    if (!type || !VALID_TYPES.includes(String(type).toLowerCase())) {
-      errors.push(`Le type doit être l'un des suivants: ${VALID_TYPES.join(', ')}`);
+    const normalized = normalizeType(type);
+    if (!type || !['étudiant', 'professeur', 'externe'].includes(normalized)) {
+      errors.push('Le type doit être l\'un des suivants: étudiant, professeur, externe');
     }
   }
 
   return errors;
 }
 
-export { VALID_TYPES, validateParticipantPayload, isValidEmail, isValidPhone };
+export { VALID_TYPES, validateParticipantPayload, isValidEmail, isValidPhone, normalizeType };
