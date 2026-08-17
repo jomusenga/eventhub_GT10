@@ -64,8 +64,8 @@ export default function ParticipantForm() {
           email: participant.email || '',
           telephone: participant.telephone || participant.phone || '',
           type: normalizeType(participant.type),
-          // Préremplit avec le premier événement lié (s'il existe)
-          eventId: eventIds[0] || ''
+          // Vide en édition : on n'ajoute un événement que si l'utilisateur en choisit un explicitement
+          eventId: ''
         });
       } catch {
         setErrorMsg(isEditing
@@ -97,17 +97,23 @@ export default function ParticipantForm() {
 
     try {
       if (isEditing) {
-        await participantsApi.update(id, form);
+        await participantsApi.update(id, {
+          nom: form.nom,
+          email: form.email,
+          telephone: form.telephone,
+          type: form.type
+        });
 
-        const alreadyLinked = linkedEventIds.includes(String(form.eventId));
-        if (form.eventId && !alreadyLinked) {
-          const { count } = await registrationsApi.getCountByEvent(form.eventId);
-          const event = events.find((ev) => String(ev.id) === String(form.eventId));
+        const selectedEventId = String(form.eventId || '');
+        const alreadyLinked = linkedEventIds.includes(selectedEventId);
+        if (selectedEventId && !alreadyLinked) {
+          const { count } = await registrationsApi.getCountByEvent(selectedEventId);
+          const event = events.find((ev) => String(ev.id) === selectedEventId);
           const capacite = event?.capaciteMax ?? 0;
           if (capacite > 0 && count >= capacite) {
-            throw new Error("Impossible d'inscrire : l'événement sélectionné est complet.");
+            throw new Error("Profil enregistré, mais l'événement sélectionné est complet.");
           }
-          await registrationsApi.register(form.eventId, id);
+          await registrationsApi.register(selectedEventId, id);
         }
       } else {
         const availability = await eventsApi.checkAvailability(form.eventId);
@@ -146,7 +152,7 @@ export default function ParticipantForm() {
         <h1>{isEditing ? 'Modifier le participant' : 'Inscrire un participant'}</h1>
         <p>
           {isEditing
-            ? 'Mets à jour le profil. L’événement actuel est affiché ; tu peux en ajouter un autre si besoin.'
+            ? 'Mets à jour le profil. Les événements déjà liés restent inchangés sauf si tu en ajoutes un nouveau ci-dessous.'
             : 'Crée le participant et inscris-le immédiatement à un événement existant.'}
         </p>
       </div>
@@ -203,7 +209,7 @@ export default function ParticipantForm() {
 
         <div className="form-group">
           <label htmlFor="eventId">
-            {isEditing ? 'Événement (actuel ou nouveau)' : 'Événement à assigner'}
+            {isEditing ? 'Ajouter un événement (optionnel)' : 'Événement à assigner'}
           </label>
           <select
             id="eventId"
@@ -213,12 +219,12 @@ export default function ParticipantForm() {
             required={!isEditing}
           >
             <option value="">
-              {isEditing ? '— Choisir / ajouter un événement —' : '— Choisir un événement —'}
+              {isEditing ? '— Ne rien ajouter —' : '— Choisir un événement —'}
             </option>
             {events.map((ev) => {
               const linked = linkedEventIds.includes(String(ev.id));
               return (
-                <option key={ev.id} value={ev.id}>
+                <option key={ev.id} value={ev.id} disabled={linked}>
                   {ev.titre} ({ev.date} — {ev.lieu}){linked ? ' — déjà inscrit' : ''}
                 </option>
               );
@@ -233,7 +239,7 @@ export default function ParticipantForm() {
             {status === 'submitting'
               ? 'Enregistrement…'
               : isEditing
-                ? 'Enregistrer'
+                ? 'Enregistrer le profil'
                 : 'Créer et inscrire'}
           </button>
           {isEditing && (

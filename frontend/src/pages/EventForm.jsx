@@ -49,10 +49,11 @@ export default function EventForm() {
     try {
       if (isEditing) {
         await eventsApi.update(id, form);
+        navigate(`/events/${id}`);
       } else {
-        await eventsApi.create(form);
+        const created = await eventsApi.create(form);
+        navigate(created?.id ? `/events/${created.id}` : '/admin/events');
       }
-      navigate('/');
     } catch (err) {
       setStatus('error');
       setErrorMsg(err.message || "Une erreur est survenue lors de l'enregistrement.");

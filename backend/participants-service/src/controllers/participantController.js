@@ -1,6 +1,5 @@
 import { participantModel } from '../models/participantModel.js';
-import { validateParticipantPayload } from '../utils/validation.js';
-
+import { validateParticipantPayload, normalizeType } from '../utils/validation.js';
 export const getAllParticipants = async (req, res, next) => {
   try {
     const { search } = req.query;
@@ -45,7 +44,7 @@ export const createParticipant = async (req, res, next) => {
       name: String(name).trim(),
       email: String(email).trim().toLowerCase(),
       phone: phone ? String(phone).trim() : null,
-      type: String(type).toLowerCase()
+      type: normalizeType(type)
     });
 
     res.status(201).json({ success: true, message: 'Participant créé avec succès', data: participant });
@@ -88,7 +87,7 @@ export const updateParticipant = async (req, res, next) => {
       name: String(payload.name).trim(),
       email: String(payload.email).trim().toLowerCase(),
       phone: payload.phone ? String(payload.phone).trim() : null,
-      type: String(payload.type).toLowerCase()
+      type: normalizeType(payload.type)
     });
 
     res.json({ success: true, message: 'Profil du participant mis à jour', data: updated });
