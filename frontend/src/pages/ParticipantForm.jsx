@@ -20,7 +20,7 @@ export default function ParticipantForm() {
 
   const [form, setForm] = useState(EMPTY_PARTICIPANT);
   const [events, setEvents] = useState([]);
-  const [linkedEventIds, setLinkedEventIds] = useState([]);
+  const [linkedRegistrations, setLinkedRegistrations] = useState([]);
   const [linkedEventsLabel, setLinkedEventsLabel] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('idle');
@@ -36,7 +36,7 @@ export default function ParticipantForm() {
 
         if (!isEditing) {
           setForm(EMPTY_PARTICIPANT);
-          setLinkedEventIds([]);
+          setLinkedRegistrations([]);
           setLinkedEventsLabel([]);
           return;
         }
@@ -46,26 +46,31 @@ export default function ParticipantForm() {
           registrationsApi.getByParticipant(id).catch(() => [])
         ]);
 
-        const eventIds = (registrations || [])
-          .map((reg) => String(reg.eventId ?? reg.event_id ?? ''))
-          .filter(Boolean);
+        const regs = (registrations || []).filter(
+          (reg) => reg.eventId ?? reg.event_id
+        );
 
-        const labels = eventIds.map((eventId) => {
-          const ev = eventsData.find((item) => String(item.id) === String(eventId));
+        const labels = regs.map((reg) => {
+          const eventId = String(reg.eventId ?? reg.event_id);
+          const ev = eventsData.find((item) => String(item.id) === eventId);
           return ev
             ? `${ev.titre} (${ev.date} — ${ev.lieu})`
             : `Événement #${eventId}`;
         });
 
-        setLinkedEventIds(eventIds);
+        // Préremplit avec l'événement actuel pour pouvoir défiler et en choisir un autre
+        const currentEventId = regs[0]
+          ? String(regs[0].eventId ?? regs[0].event_id)
+          : '';
+
+        setLinkedRegistrations(regs);
         setLinkedEventsLabel(labels);
         setForm({
           nom: participant.nom || participant.name || '',
           email: participant.email || '',
           telephone: participant.telephone || participant.phone || '',
           type: normalizeType(participant.type),
-          // Vide en édition : on n'ajoute un événement que si l'utilisateur en choisit un explicitement
-          eventId: ''
+          eventId: currentEventId
         });
       } catch {
         setErrorMsg(isEditing
@@ -79,6 +84,37 @@ export default function ParticipantForm() {
   }, [id, isEditing]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  /** Remplace les inscriptions existantes par un seul événement cible (pas d'ajout cumulatif). */
+  async function replaceRegistration(participantId, targetEventId) {
+    const selected = String(targetEventId || '');
+
+    const toCancel = linkedRegistrations.filter((reg) => {
+      const eventId = String(reg.eventId ?? reg.event_id ?? '');
+      return eventId !== selected;
+    });
+
+    for (const reg of toCancel) {
+      if (reg.id != null) {
+        await registrationsApi.cancel(reg.id);
+      }
+    }
+
+    if (!selected) return;
+
+    const alreadyOnTarget = linkedRegistrations.some(
+      (reg) => String(reg.eventId ?? reg.event_id) === selected
+    );
+    if (alreadyOnTarget) return;
+
+    const { count } = await registrationsApi.getCountByEvent(selected);
+    const event = events.find((ev) => String(ev.id) === selected);
+    const capacite = event?.capaciteMax ?? 0;
+    if (capacite > 0 && count >= capacite) {
+      throw new Error("Profil enregistré, mais l'événement sélectionné est complet.");
+    }
+    await registrationsApi.register(selected, participantId);
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -104,16 +140,9 @@ export default function ParticipantForm() {
           type: form.type
         });
 
-        const selectedEventId = String(form.eventId || '');
-        const alreadyLinked = linkedEventIds.includes(selectedEventId);
-        if (selectedEventId && !alreadyLinked) {
-          const { count } = await registrationsApi.getCountByEvent(selectedEventId);
-          const event = events.find((ev) => String(ev.id) === selectedEventId);
-          const capacite = event?.capaciteMax ?? 0;
-          if (capacite > 0 && count >= capacite) {
-            throw new Error("Profil enregistré, mais l'événement sélectionné est complet.");
-          }
-          await registrationsApi.register(selectedEventId, id);
+        // Vide = « Ne rien changer » → profil seul. Sinon → remplace l'inscription.
+        if (form.eventId) {
+          await replaceRegistration(id, form.eventId);
         }
       } else {
         const availability = await eventsApi.checkAvailability(form.eventId);
@@ -152,7 +181,7 @@ export default function ParticipantForm() {
         <h1>{isEditing ? 'Modifier le participant' : 'Inscrire un participant'}</h1>
         <p>
           {isEditing
-            ? 'Mets à jour le profil. Les événements déjà liés restent inchangés sauf si tu en ajoutes un nouveau ci-dessous.'
+            ? 'Le champ événement est prérempli avec l’inscription actuelle. Choisis-en un autre pour la remplacer (sans cumuler).'
             : 'Crée le participant et inscris-le immédiatement à un événement existant.'}
         </p>
       </div>
@@ -209,7 +238,7 @@ export default function ParticipantForm() {
 
         <div className="form-group">
           <label htmlFor="eventId">
-            {isEditing ? 'Ajouter un événement (optionnel)' : 'Événement à assigner'}
+            {isEditing ? 'Modifier / choisir l’événement' : 'Événement à assigner'}
           </label>
           <select
             id="eventId"
@@ -219,16 +248,13 @@ export default function ParticipantForm() {
             required={!isEditing}
           >
             <option value="">
-              {isEditing ? '— Ne rien ajouter —' : '— Choisir un événement —'}
+              {isEditing ? '— Ne rien changer —' : '— Choisir un événement —'}
             </option>
-            {events.map((ev) => {
-              const linked = linkedEventIds.includes(String(ev.id));
-              return (
-                <option key={ev.id} value={ev.id} disabled={linked}>
-                  {ev.titre} ({ev.date} — {ev.lieu}){linked ? ' — déjà inscrit' : ''}
-                </option>
-              );
-            })}
+            {events.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.titre} ({ev.date} — {ev.lieu})
+              </option>
+            ))}
           </select>
         </div>
 
