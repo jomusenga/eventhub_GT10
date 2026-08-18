@@ -14,8 +14,8 @@ export default function EventCard({ event }) {
           <span><i className="fa-solid fa-location-dot meta-icon" aria-hidden="true"></i>{event.lieu}</span>
           <span className={`badge ${complet ? 'full' : ''}`}>
             {complet
-              ? 'Complet'
-              : `${placesRestantes}/${event.capaciteMax} places`}
+              ? `Complet (${event.inscrits || 0}/${event.capaciteMax})`
+              : `${event.inscrits || 0}/${event.capaciteMax} inscrits · ${placesRestantes} restantes`}
           </span>
         </div>
       </div>
