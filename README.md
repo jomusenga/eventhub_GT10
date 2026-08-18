@@ -108,8 +108,11 @@ Rôle stocké en `localStorage` (`etudiant` par défaut, bascule possible vers `
 | `POST` | `/` | Créer |
 | `GET` | `/:id` | Détail |
 | `PUT` | `/:id` | Modifier |
-| `DELETE` | `/:id` | Supprimer |
+| `DELETE` | `/:id` | Annuler (soft-delete, statut `CANCELLED`) |
+| `POST` | `/:id/restore` | Restaurer un événement annulé |
 | `GET` | `/:id/availability` | Capacité / places restantes |
+
+Filtres liste : `?date=`, `?location=`, `?status=ACTIVE|CANCELLED|ALL` (défaut : actifs).
 
 ### Participants — `http://localhost:3002/api/participants`
 
@@ -280,3 +283,17 @@ EventHub/
 - **Frontend** : React 18, Vite, React Router
 - **Infra** : Docker multi-stage (`node:20-alpine`), Docker Compose, nginx
 - **CI/CD** : GitHub Actions (tests, GHCR, staging) + Railway (prod publique)
+
+---
+
+## Auteurs — Équipe 5
+
+| # | Nom |
+|---|---|
+| 1 | Joseph Musenga |
+| 2 | Mouhamed Ndiaye |
+| 3 | DOAMBA Lory Hesdrie|
+| 4 | Yverline Tibera |
+| 5 | Houleymatou Diallo |
+
+**Scrum Master :** Mouhamed Ndiaye
