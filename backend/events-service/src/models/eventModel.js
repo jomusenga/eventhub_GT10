@@ -1,9 +1,14 @@
 import { queryDb } from '../config/db.js';
 
 export const eventModel = {
-  async findAll({ date, location }) {
+  async findAll({ date, location, status = 'ACTIVE' }) {
     let query = 'SELECT * FROM events WHERE 1=1';
     const params = [];
+
+    if (status && status !== 'ALL') {
+      params.push(status);
+      query += ` AND status = $${params.length}`;
+    }
 
     if (date) {
       params.push(date);
@@ -27,8 +32,8 @@ export const eventModel = {
 
   async create({ title, description, date, location, max_capacity }) {
     const query = `
-      INSERT INTO events (title, description, date, location, max_capacity)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO events (title, description, date, location, max_capacity, status)
+      VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
       RETURNING *
     `;
     const values = [title, description || '', date, location, max_capacity];
@@ -53,8 +58,20 @@ export const eventModel = {
     return rows[0] || null;
   },
 
-  async delete(id) {
-    const { rows } = await queryDb('DELETE FROM events WHERE id = $1 RETURNING *', [id]);
+  /** Soft delete : conserve l'id et les inscriptions liées */
+  async cancel(id) {
+    const { rows } = await queryDb(
+      `UPDATE events SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      ['CANCELLED', id]
+    );
+    return rows[0] || null;
+  },
+
+  async restore(id) {
+    const { rows } = await queryDb(
+      `UPDATE events SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      ['ACTIVE', id]
+    );
     return rows[0] || null;
   }
 };

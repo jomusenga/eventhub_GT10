@@ -15,6 +15,25 @@ export default function Registration() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  /** Trouve un participant déjà connu par email, sinon le crée. */
+  async function resolveParticipant() {
+    const email = form.email.trim().toLowerCase();
+    const matches = await participantsApi.search(email).catch(() => []);
+    const existing = (matches || []).find(
+      (p) => String(p.email || '').trim().toLowerCase() === email
+    );
+
+    if (existing) {
+      try {
+        return await participantsApi.update(existing.id, form);
+      } catch {
+        return existing;
+      }
+    }
+
+    return participantsApi.create(form);
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('submitting');
@@ -39,13 +58,30 @@ export default function Registration() {
         return;
       }
 
-      const participant = await participantsApi.create(form);
+      const participant = await resolveParticipant();
+
+      const existingRegs = await registrationsApi.getByParticipant(participant.id).catch(() => []);
+      const alreadyOnEvent = (existingRegs || []).some(
+        (r) => String(r.eventId ?? r.event_id) === String(eventId)
+      );
+      if (alreadyOnEvent) {
+        localStorage.setItem('eventhub_participant_id', String(participant.id));
+        setStatus('error');
+        setErrorMsg('Tu es déjà inscrit·e à cet événement.');
+        return;
+      }
+
       await registrationsApi.register(eventId, participant.id);
-      localStorage.setItem('eventhub_participant_id', participant.id);
+      localStorage.setItem('eventhub_participant_id', String(participant.id));
       setStatus('success');
     } catch (err) {
       setStatus('error');
-      setErrorMsg(err.message || "Une erreur est survenue pendant l'inscription.");
+      const raw = err.message || '';
+      if (/déjà|existe|409/i.test(raw)) {
+        setErrorMsg("Impossible d'inscrire : tu es peut-être déjà inscrit·e, ou l'email est en conflit.");
+      } else {
+        setErrorMsg(raw || "Une erreur est survenue pendant l'inscription.");
+      }
     }
   };
 
@@ -57,7 +93,7 @@ export default function Registration() {
             <i className="fa-solid fa-circle-check meta-icon" aria-hidden="true"></i>
             Inscription confirmée
           </h1>
-          <p>Tu recevras un email de confirmation prochainement.</p>
+          <p>Tu peux annuler puis te réinscrire plus tard avec le même email.</p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1rem' }}>
             <button className="btn btn-primary" onClick={() => navigate(`/events/${eventId}`)}>
               Retour à l'événement
@@ -75,6 +111,7 @@ export default function Registration() {
     <div className="container">
       <div className="page-header">
         <h1>Inscription à l'événement</h1>
+        <p>Si tu t’es déjà inscrit·e une fois, réutilise le même email : ton profil sera repris automatiquement.</p>
       </div>
 
       <form className="event-card" onSubmit={handleSubmit} noValidate>

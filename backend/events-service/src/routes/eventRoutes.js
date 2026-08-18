@@ -4,7 +4,8 @@ import {
   getEventById,
   createEvent,
   updateEvent,
-  deleteEvent,
+  cancelEvent,
+  restoreEvent,
   checkAvailability
 } from '../controllers/eventController.js';
 
@@ -12,9 +13,11 @@ const router = express.Router();
 
 router.get('/', getAllEvents);
 router.post('/', createEvent);
+router.get('/:id/availability', checkAvailability);
+router.post('/:id/restore', restoreEvent);
 router.get('/:id', getEventById);
 router.put('/:id', updateEvent);
-router.delete('/:id', deleteEvent);
-router.get('/:id/availability', checkAvailability);
+// DELETE = soft cancel (conserve id + inscriptions)
+router.delete('/:id', cancelEvent);
 
 export default router;

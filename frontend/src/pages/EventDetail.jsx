@@ -12,6 +12,7 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [myRegistration, setMyRegistration] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const participantId = localStorage.getItem('eventhub_participant_id');
@@ -48,7 +49,7 @@ export default function EventDetail() {
       .catch(() => setMyRegistration(null));
   }, [id, participantId, admin]);
 
-  const handleCancel = async () => {
+  const handleCancelRegistration = async () => {
     if (!myRegistration) return;
     if (!window.confirm("Annuler ton inscription à cet événement ?")) return;
     setCancelling(true);
@@ -64,9 +65,40 @@ export default function EventDetail() {
     }
   };
 
+  const handleCancelEvent = async () => {
+    if (!window.confirm(
+      "Annuler cet événement ?\n\nLes inscriptions sont conservées. Tu pourras le restaurer plus tard avec les mêmes inscrits."
+    )) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await eventsApi.cancel(id);
+      setEvent((prev) => ({ ...prev, ...updated, status: 'CANCELLED' }));
+    } catch (err) {
+      setError(err.message || "Impossible d'annuler l'événement.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRestoreEvent = async () => {
+    if (!window.confirm('Restaurer cet événement ? Les inscrits précédents restent liés.')) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await eventsApi.restore(id);
+      setEvent((prev) => ({ ...prev, ...updated, status: 'ACTIVE' }));
+    } catch (err) {
+      setError(err.message || "Impossible de restaurer l'événement.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading) return <p className="state-message">Chargement…</p>;
   if (!event) return <p className="state-message">Événement introuvable.</p>;
 
+  const cancelled = event.status === 'CANCELLED';
   const placesRestantes = event.capaciteMax - (event.inscrits || 0);
   const backTo = admin ? '/admin/events' : '/';
 
@@ -77,6 +109,7 @@ export default function EventDetail() {
           ← Retour aux événements
         </Link>
         <h1>{event.titre}</h1>
+        {cancelled && <p style={{ color: 'var(--color-danger)' }}>Cet événement est annulé. Les inscriptions sont conservées.</p>}
       </div>
 
       <div className="event-card">
@@ -86,9 +119,11 @@ export default function EventDetail() {
           <span><i className="fa-solid fa-location-dot meta-icon" aria-hidden="true"></i>{event.lieu}</span>
           <span>
             <i className="fa-solid fa-users meta-icon" aria-hidden="true"></i>
-            {placesRestantes} places restantes sur {event.capaciteMax}
-            {' '}({event.inscrits || 0} inscrit{event.inscrits > 1 ? 's' : ''})
+            {cancelled
+              ? `${event.inscrits || 0} inscription(s) conservée(s)`
+              : `${placesRestantes} places restantes sur ${event.capaciteMax} (${event.inscrits || 0} inscrit${event.inscrits > 1 ? 's' : ''})`}
           </span>
+          {cancelled && <span className="badge full">Annulé</span>}
           {!admin && myRegistration && <span className="badge">Tu es inscrit·e</span>}
         </div>
 
@@ -103,12 +138,28 @@ export default function EventDetail() {
               <button className="btn btn-secondary" onClick={() => navigate(`/events/${id}/inscrits`)}>
                 Voir les inscrits
               </button>
+              {cancelled ? (
+                <button className="btn btn-primary" onClick={handleRestoreEvent} disabled={busy}>
+                  {busy ? '…' : 'Restaurer l\'événement'}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-secondary"
+                  style={{ color: 'var(--color-danger)' }}
+                  onClick={handleCancelEvent}
+                  disabled={busy}
+                >
+                  {busy ? '…' : 'Annuler l\'événement'}
+                </button>
+              )}
             </>
+          ) : cancelled ? (
+            <p className="state-message" style={{ margin: 0 }}>Inscriptions fermées (événement annulé).</p>
           ) : myRegistration ? (
             <button
               className="btn btn-secondary"
               style={{ color: 'var(--color-danger)' }}
-              onClick={handleCancel}
+              onClick={handleCancelRegistration}
               disabled={cancelling}
             >
               {cancelling ? 'Annulation…' : "Annuler mon inscription"}

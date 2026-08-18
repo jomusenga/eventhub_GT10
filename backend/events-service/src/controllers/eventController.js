@@ -3,8 +3,13 @@ import { validateEventPayload } from '../utils/validation.js';
 
 export const getAllEvents = async (req, res, next) => {
   try {
-    const { date, location } = req.query;
-    const events = await eventModel.findAll({ date, location });
+    const { date, location, status } = req.query;
+    // Par défaut : événements actifs. Admin : ?status=ALL ou ?status=CANCELLED
+    const events = await eventModel.findAll({
+      date,
+      location,
+      status: status || 'ACTIVE'
+    });
     res.json({ success: true, count: events.length, data: events });
   } catch (error) {
     next(error);
@@ -82,14 +87,44 @@ export const updateEvent = async (req, res, next) => {
   }
 };
 
-export const deleteEvent = async (req, res, next) => {
+/** Soft delete : status CANCELLED, inscriptions conservées */
+export const cancelEvent = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const deleted = await eventModel.delete(id);
-    if (!deleted) {
+    const existing = await eventModel.findById(id);
+    if (!existing) {
       return res.status(404).json({ success: false, message: `Événement introuvable avec l'ID ${id}` });
     }
-    res.json({ success: true, message: 'Événement supprimé avec succès', data: deleted });
+    if (existing.status === 'CANCELLED') {
+      return res.json({ success: true, message: 'Événement déjà annulé', data: existing });
+    }
+    const cancelled = await eventModel.cancel(id);
+    res.json({
+      success: true,
+      message: 'Événement annulé. Les inscriptions sont conservées et pourront être reprises après restauration.',
+      data: cancelled
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreEvent = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await eventModel.findById(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: `Événement introuvable avec l'ID ${id}` });
+    }
+    if (existing.status === 'ACTIVE') {
+      return res.json({ success: true, message: 'Événement déjà actif', data: existing });
+    }
+    const restored = await eventModel.restore(id);
+    res.json({
+      success: true,
+      message: 'Événement restauré. Les inscriptions précédentes sont à nouveau liées.',
+      data: restored
+    });
   } catch (error) {
     next(error);
   }
@@ -102,13 +137,21 @@ export const checkAvailability = async (req, res, next) => {
     if (!event) {
       return res.status(404).json({ success: false, message: `Événement introuvable avec l'ID ${id}` });
     }
+    if (event.status === 'CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cet événement est annulé',
+        data: { eventId: event.id, status: event.status, maxCapacity: event.max_capacity }
+      });
+    }
 
     res.json({
       success: true,
       data: {
         eventId: event.id,
         title: event.title,
-        maxCapacity: event.max_capacity
+        maxCapacity: event.max_capacity,
+        status: event.status || 'ACTIVE'
       }
     });
   } catch (error) {

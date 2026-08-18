@@ -20,7 +20,9 @@ export default function EventsList({ adminMode = false }) {
     setLoading(true);
     setError(null);
     try {
-      const data = await eventsApi.getAll(filters);
+      const query = { ...filters };
+      if (adminMode) query.status = 'ALL';
+      const data = await eventsApi.getAll(query);
       const withCounts = await enrichEventsWithInscrits(data);
       setEvents(withCounts);
       if (!filters.date && !filters.lieu) setAllEvents(withCounts);
@@ -33,7 +35,7 @@ export default function EventsList({ adminMode = false }) {
     }
   };
 
-  useEffect(() => { loadEvents(); }, []);
+  useEffect(() => { loadEvents(); }, [adminMode]);
 
   const handleFilter = async (e) => {
     e.preventDefault();
@@ -48,7 +50,9 @@ export default function EventsList({ adminMode = false }) {
 
     setLoading(true);
     try {
-      const data = await eventsApi.getAll(filters);
+      const query = { ...filters };
+      if (adminMode) query.status = 'ALL';
+      const data = await eventsApi.getAll(query);
       const withCounts = await enrichEventsWithInscrits(data);
       setEvents(withCounts);
     } catch {
