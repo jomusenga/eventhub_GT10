@@ -43,6 +43,7 @@ function mapEventFromBackend(event) {
     lieu: event.location ?? event.lieu,
     capaciteMax: event.max_capacity ?? event.capaciteMax,
     date: dateOnly,
+    status: event.status || 'ACTIVE',
     title: event.title,
     location: event.location,
     max_capacity: event.max_capacity
@@ -110,6 +111,7 @@ export const eventsApi = {
     if (filters.location || filters.lieu) {
       params.append('location', filters.location || filters.lieu);
     }
+    if (filters.status) params.append('status', filters.status);
     const query = params.toString();
     const res = await request(`${EVENTS_API_URL}/api/events${query ? `?${query}` : ''}`);
     return normalizeList(res, mapEventFromBackend);
@@ -152,6 +154,17 @@ export const eventsApi = {
 
   remove: (id) =>
     request(`${EVENTS_API_URL}/api/events/${id}`, { method: 'DELETE' }),
+
+  /** Soft cancel — conserve id + inscriptions */
+  cancel: (id) =>
+    request(`${EVENTS_API_URL}/api/events/${id}`, { method: 'DELETE' }),
+
+  restore: async (id) => {
+    const res = await request(`${EVENTS_API_URL}/api/events/${id}/restore`, {
+      method: 'POST'
+    });
+    return normalizeOne(res, mapEventFromBackend);
+  },
 
   checkAvailability: async (id) => {
     const res = await request(`${EVENTS_API_URL}/api/events/${id}/availability`);

@@ -11,6 +11,7 @@ export default function EventForm() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState(EMPTY_EVENT);
+  const [eventStatus, setEventStatus] = useState('ACTIVE');
   const [loading, setLoading] = useState(isEditing);
   const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -18,13 +19,16 @@ export default function EventForm() {
   useEffect(() => {
     if (!isEditing) return;
     eventsApi.getById(id)
-      .then((data) => setForm({
-        titre: data.titre || '',
-        description: data.description || '',
-        date: data.date ? String(data.date).slice(0, 10) : '',
-        lieu: data.lieu || '',
-        capaciteMax: data.capaciteMax ?? 50
-      }))
+      .then((data) => {
+        setForm({
+          titre: data.titre || '',
+          description: data.description || '',
+          date: data.date ? String(data.date).slice(0, 10) : '',
+          lieu: data.lieu || '',
+          capaciteMax: data.capaciteMax ?? 50
+        });
+        setEventStatus(data.status || 'ACTIVE');
+      })
       .catch(() => setErrorMsg("Impossible de charger l'événement."))
       .finally(() => setLoading(false));
   }, [id, isEditing]);
@@ -60,13 +64,26 @@ export default function EventForm() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Supprimer définitivement cet événement ?')) return;
+  const handleCancelEvent = async () => {
+    if (!window.confirm(
+      "Annuler cet événement ?\n\nLes inscriptions sont conservées. Tu pourras le restaurer ensuite."
+    )) return;
     try {
-      await eventsApi.remove(id);
-      navigate('/');
+      await eventsApi.cancel(id);
+      navigate('/admin/events');
     } catch (err) {
-      setErrorMsg(err.message || 'Impossible de supprimer cet événement.');
+      setErrorMsg(err.message || "Impossible d'annuler l'événement.");
+    }
+  };
+
+  const handleRestoreEvent = async () => {
+    if (!window.confirm('Restaurer cet événement avec ses inscriptions ?')) return;
+    try {
+      await eventsApi.restore(id);
+      setEventStatus('ACTIVE');
+      navigate(`/events/${id}`);
+    } catch (err) {
+      setErrorMsg(err.message || "Impossible de restaurer l'événement.");
     }
   };
 
@@ -75,10 +92,13 @@ export default function EventForm() {
   return (
     <div className="container">
       <div className="page-header">
-        <Link to="/" className="btn btn-secondary" style={{ marginBottom: '1.5rem', display: 'inline-block' }}>
+        <Link to="/admin/events" className="btn btn-secondary" style={{ marginBottom: '1.5rem', display: 'inline-block' }}>
           ← Retour aux événements
         </Link>
         <h1>{isEditing ? "Modifier l'événement" : 'Créer un événement'}</h1>
+        {isEditing && eventStatus === 'CANCELLED' && (
+          <p style={{ color: 'var(--color-danger)' }}>Événement actuellement annulé — les inscrits sont conservés.</p>
+        )}
       </div>
 
       <form className="event-card" onSubmit={handleSubmit} noValidate>
@@ -109,13 +129,18 @@ export default function EventForm() {
 
         {errorMsg && <p className="state-message" style={{ color: 'var(--color-danger)' }}>{errorMsg}</p>}
 
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
           <button className="btn btn-primary" type="submit" disabled={status === 'submitting'}>
             {status === 'submitting' ? 'Enregistrement…' : isEditing ? 'Enregistrer les modifications' : "Créer l'événement"}
           </button>
-          {isEditing && (
-            <button type="button" className="btn btn-secondary" onClick={handleDelete} style={{ color: 'var(--color-danger)' }}>
-              Supprimer
+          {isEditing && eventStatus !== 'CANCELLED' && (
+            <button type="button" className="btn btn-secondary" onClick={handleCancelEvent} style={{ color: 'var(--color-danger)' }}>
+              Annuler l&apos;événement
+            </button>
+          )}
+          {isEditing && eventStatus === 'CANCELLED' && (
+            <button type="button" className="btn btn-primary" onClick={handleRestoreEvent}>
+              Restaurer l&apos;événement
             </button>
           )}
         </div>

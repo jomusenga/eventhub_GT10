@@ -31,6 +31,13 @@ export const registerParticipant = async (req, res, next) => {
       });
     }
 
+    if (event.status === 'CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible de s\'inscrire : cet événement est annulé'
+      });
+    }
+
     // 3. Check duplicate registration
     const existing = await registrationModel.findByEventAndParticipant(event_id, participant_id);
     if (existing) {

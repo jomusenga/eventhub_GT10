@@ -21,7 +21,8 @@ export const getEventDetails = async (eventId) => {
       id: parseInt(eventId, 10),
       title: 'Conférence DevOps & Microservices',
       max_capacity: 100,
-      location: 'Amphi A - DIT'
+      location: 'Amphi A - DIT',
+      status: 'ACTIVE'
     };
   }
 };
